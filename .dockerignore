@@ -1,0 +1,5 @@
+# Editorconfig
+.editorconfig
+
+# Dockerfiles (but not their resources)
+**/Dockerfile
