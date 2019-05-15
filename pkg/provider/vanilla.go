@@ -220,13 +220,17 @@ func (vp *VanillaProvider) Prepare(_ context.Context, _, _ string) error {
 	return nil // There is no preparation step for the vanilla edition
 }
 
-func (vp *VanillaProvider) Run(ctx context.Context, baseDir, workingDir, version string, args ...string) error {
+func (vp *VanillaProvider) Run(ctx context.Context, baseDir, workingDir, version string, runtimeArgs, serverArgs []string) error {
 	jarPath, err := filepath.Abs(filepath.Join(baseDir, "server.jar"))
 	if err != nil {
 		return err
 	}
 
-	cmd := exec.CommandContext(ctx, "java", append(args, "-jar", jarPath)...)
+	args := append(runtimeArgs, "-jar", jarPath)
+	if serverArgs != nil {
+		args = append(args, serverArgs...)
+	}
+	cmd := exec.CommandContext(ctx, "java", args...)
 	cmd.Dir = workingDir
 
 	// Vanilla server may use all standard pipes

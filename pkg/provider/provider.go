@@ -12,7 +12,7 @@ type Provider interface {
 	Fetch(ctx context.Context, baseDir, version string) error
 	IsPrepareNeeded(ctx context.Context, baseDir, version string) (bool, error)
 	Prepare(ctx context.Context, baseDir, version string) error
-	Run(ctx context.Context, baseDir, workingDir, version string, args ...string) error
+	Run(ctx context.Context, baseDir, workingDir, version string, runtimeArgs, serverArgs []string) error
 }
 
 var DefaultProviders = map[string]Provider{}

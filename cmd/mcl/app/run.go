@@ -20,7 +20,7 @@ func newRunCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "run",
 		Short: "Run a specified Minecraft edition server",
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(cmd *cobra.Command, _ []string) {
 			ctx := context.Background()
 			logger := log.NewLogger(os.Stderr, false)
 			defer logger.Sync()
@@ -79,19 +79,16 @@ func newRunCommand() *cobra.Command {
 				}
 			}
 
-			var serverArgs []string
-			if nServerArgs := cmd.ArgsLenAtDash(); nServerArgs < 0 { // No double dash in arguments
-				serverArgs = make([]string, 0)
-			} else { // Zero or more arguments after a double dash
-				serverArgs = args[cmd.ArgsLenAtDash():]
-			}
 			workingDir := runFlags.WorkingDir
-			logger = logger.With(zap.String("workingDir", workingDir))
-			logger.Info(
-				"Running server",
+			runtimeArgs := runFlags.RuntimeArgs
+			serverArgs := runFlags.ServerArgs
+			logger = logger.With(
+				zap.String("workingDir", workingDir),
+				zap.Strings("runtimeArgs", runtimeArgs),
 				zap.Strings("serverArgs", serverArgs),
 			)
-			if err := p.Run(ctx, baseDir, workingDir, version, serverArgs...); err != nil {
+			logger.Info("Running server")
+			if err := p.Run(ctx, baseDir, workingDir, version, runtimeArgs, serverArgs); err != nil {
 				logger.Fatal(
 					"Failure while running server",
 					zap.Error(err),
