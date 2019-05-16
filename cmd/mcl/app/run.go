@@ -25,6 +25,7 @@ func newRunCommand() *cobra.Command {
 			logger := log.NewLogger(os.Stderr, false)
 			defer logger.Sync()
 
+			// Resolve edition to its provider
 			edition := runFlags.Edition
 			logger = logger.With(zap.String("edition", edition))
 			p, ok := provider.DefaultProviders[edition]
@@ -32,6 +33,8 @@ func newRunCommand() *cobra.Command {
 				logger.Fatal("Provider not found")
 			}
 
+			// Resolve version either from the provider (if not specified) or from the
+			// flag.
 			// TODO: De-dupe logger.With calls in if-else blocks
 			var version string
 			if runFlags.Version == "" {
@@ -53,6 +56,8 @@ func newRunCommand() *cobra.Command {
 			logger = logger.With(zap.String("resolvedVersion", resolvedVersion))
 			logger.Info("Resolved version")
 
+			// Form the base directory for the given store directory, structure,
+			// edition, and version.
 			baseDir, err := store.BaseDir(runFlags.StoreDir, runFlags.StoreStructure, edition, resolvedVersion)
 			if err != nil {
 				logger.Fatal(
@@ -62,6 +67,7 @@ func newRunCommand() *cobra.Command {
 				)
 			}
 
+			// Fetch server resources if needed
 			isFetchNeeded, err := p.IsFetchNeeded(ctx, baseDir, resolvedVersion)
 			if err != nil {
 				logger.Fatal(
@@ -79,6 +85,9 @@ func newRunCommand() *cobra.Command {
 				}
 			}
 
+			// TODO: prepare server resoruces if needed
+
+			// Run server according to the provider
 			workingDir := runFlags.WorkingDir
 			runtimeArgs := runFlags.RuntimeArgs
 			serverArgs := runFlags.ServerArgs

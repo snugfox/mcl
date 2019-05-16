@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
+// FetchFlags contains the flags for the MCL fetch command
 type FetchFlags struct {
 	StoreDir       string
 	StoreStructure string
@@ -11,6 +12,7 @@ type FetchFlags struct {
 	Version        string
 }
 
+// NewFetchFlags returns a new FetchFlags object with default parameters
 func NewFetchFlags() *FetchFlags {
 	return &FetchFlags{
 		StoreDir:       "", // Current directory
@@ -20,6 +22,7 @@ func NewFetchFlags() *FetchFlags {
 	}
 }
 
+// AddFlags adds MCL fetch command flags to a given flag set
 func (ff *FetchFlags) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&ff.StoreDir, "store-dir", ff.StoreDir, "Directory to store server resources")
 	fs.StringVar(&ff.StoreStructure, "store-structure", ff.StoreStructure, "Directory structure for storing server resources")

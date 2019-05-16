@@ -25,6 +25,7 @@ func newResolveVersionCommand() *cobra.Command {
 			logger := log.NewLogger(os.Stderr, false)
 			defer logger.Sync()
 
+			// Resolve edition to its provider
 			edition := resolveVersionFlags.Edition
 			logger = logger.With(zap.String("edition", edition))
 			p, ok := provider.DefaultProviders[edition]
@@ -32,6 +33,7 @@ func newResolveVersionCommand() *cobra.Command {
 				logger.Fatal("Provider not found")
 			}
 
+			// Resolve version according to the provider
 			version := resolveVersionFlags.Version
 			resolvedVersion, err := p.ResolveVersion(ctx, version)
 			if err != nil {

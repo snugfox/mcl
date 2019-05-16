@@ -4,9 +4,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// NewMCLCommand creates a new *cobra.Command for the MCL application with
+// default subcommands and flags.
 func NewMCLCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Version: "0.1.0",
+		Version: "0.1.0", // TODO: Use version constant
 		Use:     "mcl",
 		Short:   "Minecraft launcher for server deployments",
 	}

@@ -25,6 +25,7 @@ func newListVersionsCommand() *cobra.Command {
 			logger := log.NewLogger(os.Stderr, false)
 			defer logger.Sync()
 
+			// Resolve edition to its provider
 			edition := listVersionsFlags.Edition
 			logger = logger.With(zap.String("edition", edition))
 			p, ok := provider.DefaultProviders[edition]
@@ -32,6 +33,7 @@ func newListVersionsCommand() *cobra.Command {
 				logger.Fatal("Provider not found")
 			}
 
+			// Print versions returned form the provider
 			versions, err := p.Versions(ctx)
 			if err != nil {
 				logger.Fatal(
