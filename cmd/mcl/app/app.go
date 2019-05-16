@@ -18,6 +18,7 @@ func NewMCLCommand() *cobra.Command {
 	cmd.AddCommand(newListVersionsCommand())
 	cmd.AddCommand(newResolveVersionCommand())
 	cmd.AddCommand(newRunCommand())
+	cmd.AddCommand(newPrepareCommand())
 
 	return cmd
 }
