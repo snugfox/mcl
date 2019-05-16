@@ -8,7 +8,7 @@ import (
 // default subcommands and flags.
 func NewMCLCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Version: "0.1.0", // TODO: Use version constant
+		Version: "0.1.2", // TODO: Use version constant
 		Use:     "mcl",
 		Short:   "Minecraft launcher for server deployments",
 	}
