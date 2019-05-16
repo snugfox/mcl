@@ -67,25 +67,33 @@ func newRunCommand() *cobra.Command {
 				)
 			}
 
-			// Fetch server resources if needed
-			isFetchNeeded, err := p.IsFetchNeeded(ctx, baseDir, resolvedVersion)
+			// Fetch and/or preapre server resoruces as needed
+			actionReqs, err := provider.CheckRequirements(ctx, p, baseDir, version)
 			if err != nil {
 				logger.Fatal(
-					"Failed to detect if fetch is needed",
+					"Failed to determine fetch and prepare requirements",
 					zap.Error(err),
 				)
 			}
-			if isFetchNeeded {
-				logger.Info("Fetching resources")
-				if err := p.Fetch(ctx, baseDir, resolvedVersion); err != nil {
+			switch {
+			case actionReqs.FetchRequired:
+				if err := p.Fetch(ctx, baseDir, version); err != nil {
 					logger.Fatal(
-						"Failed to fetch resources",
+						"Failure while fetching resources",
 						zap.Error(err),
 					)
 				}
+				logger.Info("Fetched server resources")
+				fallthrough
+			case actionReqs.PrepareRequired:
+				if err := p.Prepare(ctx, baseDir, version); err != nil {
+					logger.Fatal(
+						"Failure while preparing resources",
+						zap.Error(err),
+					)
+				}
+				logger.Info("Prepared server resources")
 			}
-
-			// TODO: prepare server resoruces if needed
 
 			// Run server according to the provider
 			workingDir := runFlags.WorkingDir
