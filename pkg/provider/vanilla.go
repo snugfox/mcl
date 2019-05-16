@@ -123,7 +123,7 @@ func (vvi *vanillaVersionInfo) fetchVersionManifest(ctx context.Context, force b
 }
 
 func (VanillaProvider) jarPath(baseDir string) string {
-	return filepath.Join(baseDir, serverJARFilename) // TODO: Move to constant
+	return filepath.Join(baseDir, serverJARFilename)
 }
 
 // Edition returns the edition ID and name for Minecraft: Java Edition.
@@ -139,10 +139,20 @@ func (vp *VanillaProvider) Versions(ctx context.Context) ([]string, error) {
 		return nil, err
 	}
 
-	// TODO: Filter versions without server available (can use time constant)
-	versionIDs := make([]string, len(vp.versions))
-	for i, vInfo := range vp.versions {
-		versionIDs[i] = vInfo.ID
+	// Determine release time cutoff for supported versions. The version manifest
+	// returns server JAR as far back as 1.2.5; however, servers are available for
+	// older versions through a different endpoint.
+	// TODO: Support versions available through http://s3.amazonaws.com/Minecraft.Download/versions/<VERSION>/<VERSION>.json
+	vvi125, ok := vp.versionMap["1.2.5"]
+	if !ok {
+		return nil, errors.New("version 1.2.5 not found (oldest supported server)")
+	}
+
+	versionIDs := make([]string, 0)
+	for _, vInfo := range vp.versions {
+		if vInfo.ReleaseTime.After(vvi125.ReleaseTime) || vInfo.ReleaseTime.Equal(vvi125.ReleaseTime) { // Filter unsupported versions prior to 1.2.5
+			versionIDs = append(versionIDs, vInfo.ID)
+		}
 	}
 	return versionIDs, nil
 }
