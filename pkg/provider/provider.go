@@ -54,16 +54,3 @@ type Provider interface {
 	// parameters may be nil if no arguments need to be specified.
 	Run(ctx context.Context, baseDir, workingDir, version string, runtimeArgs, serverArgs []string) error
 }
-
-// DefaultProviders is a collection of providers that maps an edition to its
-// respective provider.
-var DefaultProviders = map[string]Provider{} // TODO: Instantiate each provider dynamically at runtime
-
-func init() {
-	registerProvider(new(VanillaProvider))
-}
-
-func registerProvider(p Provider) {
-	id, _ := p.Edition()
-	DefaultProviders[id] = p
-}

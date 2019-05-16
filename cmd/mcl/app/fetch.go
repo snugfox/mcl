@@ -4,13 +4,14 @@ import (
 	"context"
 	"os"
 
+	"github.com/snugfox/mcl/internal/bundle"
+
 	"github.com/snugfox/mcl/cmd/mcl/app/options"
 
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
 	"github.com/snugfox/mcl/internal/log"
-	"github.com/snugfox/mcl/pkg/provider"
 	"github.com/snugfox/mcl/pkg/store"
 )
 
@@ -28,7 +29,7 @@ func newFetchCommand() *cobra.Command {
 			// Resolve edition to its provider
 			edition := fetchFlags.Edition
 			logger = logger.With(zap.String("edition", edition))
-			p, ok := provider.DefaultProviders[edition]
+			p, ok := bundle.NewProviderBundle()[edition]
 			if !ok {
 				logger.Fatal("Provider not found")
 			}
