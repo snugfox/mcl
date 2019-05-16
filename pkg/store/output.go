@@ -26,5 +26,5 @@ func BaseDir(storeDir, structureTmpl, edition, version string) (string, error) {
 	if err := tmpl.Execute(&dir, wrapper); err != nil {
 		return "", err
 	}
-	return filepath.Join(storeDir, dir.String()), nil // TODO: Use path package
+	return filepath.Join(storeDir, dir.String()), nil
 }

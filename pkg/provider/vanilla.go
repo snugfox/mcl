@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"time"
 )
@@ -38,7 +37,13 @@ type vanillaVersionResource struct {
 	URL  string `json:"url"`
 }
 
-const launcherManifestURL string = "https://launchermeta.mojang.com/mc/game/version_manifest.json"
+const (
+	// URL of the launcher manifest provided by Mojang
+	launcherManifestURL string = "https://launchermeta.mojang.com/mc/game/version_manifest.json"
+
+	// Filename of the server JAR
+	serverJARFilename string = "server.jar"
+)
 
 func isAcceptedHostname(rawurl string, acceptedHostnames []string) bool {
 	return true
@@ -117,8 +122,8 @@ func (vvi *vanillaVersionInfo) fetchVersionManifest(ctx context.Context, force b
 	return vvi.versionResource, nil
 }
 
-func (VanillaProvider) jarPath(outputDir string) string {
-	return path.Join(outputDir, "server.jar") // TODO: Move to constant
+func (VanillaProvider) jarPath(baseDir string) string {
+	return filepath.Join(baseDir, serverJARFilename) // TODO: Move to constant
 }
 
 // Edition returns the edition ID and name for Minecraft: Java Edition.
@@ -226,7 +231,8 @@ func (vp *VanillaProvider) Fetch(ctx context.Context, baseDir, version string) e
 	if err := os.MkdirAll(baseDir, os.ModeDir|0755); err != nil {
 		return err
 	}
-	file, err := os.OpenFile(path.Join(baseDir, "server.jar"), os.O_RDWR|os.O_CREATE, 0644)
+	jarPath := vp.jarPath(baseDir)
+	jarFile, err := os.OpenFile(jarPath, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return err
 	}
@@ -237,7 +243,7 @@ func (vp *VanillaProvider) Fetch(ctx context.Context, baseDir, version string) e
 		return err
 	}
 	defer res.Body.Close()
-	io.Copy(file, res.Body) // TODO: Check for error
+	io.Copy(jarFile, res.Body) // TODO: Check for error
 
 	return nil
 }
@@ -263,7 +269,7 @@ func (vp *VanillaProvider) Prepare(_ context.Context, _, _ string) error {
 // options and server arguments are passed to the server JAR. Either argument
 // parameter may be nil if no arguments need to be specified.
 func (vp *VanillaProvider) Run(ctx context.Context, baseDir, workingDir, version string, runtimeArgs, serverArgs []string) error {
-	jarPath, err := filepath.Abs(filepath.Join(baseDir, "server.jar"))
+	jarPath, err := filepath.Abs(vp.jarPath(baseDir))
 	if err != nil {
 		return err
 	}
