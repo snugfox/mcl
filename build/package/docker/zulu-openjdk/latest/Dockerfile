@@ -22,6 +22,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
 FROM azul/zulu-openjdk-alpine:latest
 
 # Use /data volume for MCL and server data
+RUN mkdir /data && chmod a+rwx /data
 VOLUME [ "/data" ]
 WORKDIR /data
 
