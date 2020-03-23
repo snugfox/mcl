@@ -1,0 +1,46 @@
+name: Docker Image CI
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+*"
+
+env:
+  BUILD_IMAGE: docker.pkg.github.com/snugfox/mcl/mcl-build:${{ github.ref }}
+
+jobs:
+  build-image:
+    name: Docker build image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.sha }}
+      - name: Build image
+        run: docker build -f build/package/docker/build.Dockerfile -t ${BUILD_IMAGE} .
+      - name: Login to GitHub Packages Docker registry
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: docker login docker.pkg.github.com -u snugfox -p "${GITHUB_TOKEN}"
+      - name: Push image
+        run: docker push ${BUILD_IMAGE}
+
+  release:
+    name: Release
+    needs: [build-image]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.sha }}
+      - name: Build and release
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: docker://${BUILD_IMAGE}
+        with:
+          entrypoint: /usr/bin/local/goreleaser
+          args: release --rm-dist
