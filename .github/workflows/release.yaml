@@ -1,4 +1,4 @@
-name: Docker Image CI
+name: Release
 
 on:
   push:
@@ -8,7 +8,6 @@ on:
 jobs:
   release:
     name: Release
-    needs: [build-image]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -16,13 +15,14 @@ jobs:
         with:
           ref: ${{ github.sha }}
       - name: Build image
-        run: docker build -f build/package/docker/build.Dockerfile -t snugfox/mcl-build:${{ github.sha }} .
+        run: |
+          BUILD_IMAGE="snugfox/mcl-build:${{ github.sha }}"
+          echo ::set-env name=BUILD_IMAGE::${BUILD_IMAGE}
+          docker build -f build/package/docker/build.Dockerfile -t ${BUILD_IMAGE} .
       - name: Build and release
         env:
           DOCKER_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKER_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        uses: docker://snugfox/mcl-build:${{ github.sha }}
-        with:
-          entrypoint: /usr/bin/local/goreleaser
-          args: release --rm-dist
+        run: |
+          ./build/package/docker/release.sh ${BUILD_IMAGE}
