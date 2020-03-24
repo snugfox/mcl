@@ -13,12 +13,18 @@ builds:
       - windows
       - darwin
       - linux
+      - freebsd
+      - openbsd
     goarch:
       - amd64
       - arm64
     ignore:
       - goos: darwin
-        goarch: 386
+        goarch: arm64
+      - goos: freebsd
+        goarch: arm64
+      - goos: openbsd
+        goarch: arm64
 archives:
   - format: tar.gz
     format_overrides:
