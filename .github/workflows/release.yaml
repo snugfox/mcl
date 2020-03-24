@@ -20,7 +20,7 @@ jobs:
         run: |
           BUILD_IMAGE="snugfox/mcl-build:${{ github.sha }}"
           echo ::set-env name=BUILD_IMAGE::${BUILD_IMAGE}
-          docker build -f build/package/docker/build.Dockerfile -t ${BUILD_IMAGE} .
+          docker build -f build/build.Dockerfile -t ${BUILD_IMAGE} .
       - name: Build and release
         env:
           DOCKER_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}

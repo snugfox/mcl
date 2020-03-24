@@ -43,4 +43,4 @@ dockers:
     image_templates:
       - snugfox/mcl:latest
       - snugfox/mcl:{{ .Tag }}
-    dockerfile: build/package/docker/Dockerfile
+    dockerfile: build/Dockerfile
