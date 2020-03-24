@@ -33,8 +33,7 @@ release:
   github:
     owner: snugfox
     name: mcl
-  draft: true
-  prerelease:  auto
+  prerelease: auto
 changelog:
   skip: true
 dockers:
