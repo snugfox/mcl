@@ -26,5 +26,4 @@ jobs:
           DOCKER_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKER_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          ./build/package/docker/release.sh ${BUILD_IMAGE}
+        run: ./build/release.sh ${BUILD_IMAGE}
