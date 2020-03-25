@@ -26,4 +26,8 @@ jobs:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: ./build/release.sh ${BUILD_IMAGE}
+        run: |
+          docker run --rm -e DOCKERHUB_USERNAME -e DOCKERHUB_PASSWORD \
+            -e GITHUB_TOKEN -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "$(pwd):/go/src/github.com/snugfox/mcl" ${BUILD_IMAGE} \
+            ./build/release.sh
