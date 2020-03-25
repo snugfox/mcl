@@ -48,4 +48,6 @@ dockers:
     image_templates:
       - snugfox/mcl:latest
       - snugfox/mcl:{{ .Tag }}
+      - docker.pkg.github.com/snugfox/mcl/mcl:latest
+      - docker.pkg.github.com/snugfox/mcl/mcl:{{ .Tag }}
     dockerfile: build/Dockerfile
