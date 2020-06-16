@@ -3,9 +3,10 @@ FROM golang:1.14.4-alpine3.12
 VOLUME /go/src/github.com/snugfox/mcl
 WORKDIR /go/src/github.com/snugfox/mcl
 
-ENV GOCACHE=/tmp/go-build
-
-RUN apk add --no-cache ca-certificates docker-cli git wget
+RUN set -eux; \
+    apk add --no-cache build-base ca-certificates clang docker-cli git \
+        make wget; \
+    go env -w CC=clang CXX=clang++
 
 ARG GORELEASER_VER="0.138.0"
 RUN set -eux; \
