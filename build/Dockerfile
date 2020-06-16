@@ -9,7 +9,6 @@ RUN mkdir /data && chmod a+rwx /data
 VOLUME [ "/data" ]
 WORKDIR /data
 
-# Copy binary from builder
 COPY mcl /usr/local/bin/mcl
 
 ENTRYPOINT [ "/usr/local/bin/mcl" ]

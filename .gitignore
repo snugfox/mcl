@@ -16,3 +16,6 @@ vendor/
 
 # Text editor configuration (other than .editorconfig)
 .vscode/
+
+# GoReleaser dist directory
+dist/

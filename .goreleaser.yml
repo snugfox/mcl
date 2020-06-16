@@ -1,6 +1,7 @@
 before:
   hooks:
     - go mod download
+    - go generate ./...
 builds:
   - id: mcl
     main: ./cmd/mcl
@@ -25,6 +26,12 @@ builds:
         goarch: arm64
       - goos: openbsd
         goarch: arm64
+    ldflags:
+      - "{{ if not .IsSnapshot }}-s -w{{ end }}"
+      - -X github.com/snugfox/mcl/pkg/version.BuildDate="{{ .Date }}"
+      - -X github.com/snugfox/mcl/pkg/version.GoVersion="{{ .Env.GOVER }}"
+      - -X github.com/snugfox/mcl/pkg/version.Revision="{{ .ShortCommit }}"
+      - -X github.com/snugfox/mcl/pkg/version.Version="{{ .Version }}"
 archives:
   - format: tar.gz
     format_overrides:
@@ -33,7 +40,7 @@ archives:
     files:
       - LICENSE
 checksum:
-  name_template: "checksums.txt"
+  name_template: "{{ .ProjectName }}_checksums.txt"
 snapshot:
 release:
   github:
@@ -46,8 +53,8 @@ dockers:
   - goos: linux
     goarch: amd64
     image_templates:
-      - snugfox/mcl:latest
       - snugfox/mcl:{{ .Tag }}
-      - docker.pkg.github.com/snugfox/mcl/mcl:latest
+      - snugfox/mcl:v{{ .Major }}.{{ .Minor }}
       - docker.pkg.github.com/snugfox/mcl/mcl:{{ .Tag }}
+      - docker.pkg.github.com/snugfox/mcl/mcl:v{{ .Major }}.{{ .Minor }}
     dockerfile: build/Dockerfile

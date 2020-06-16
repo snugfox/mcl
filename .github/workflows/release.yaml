@@ -16,18 +16,10 @@ jobs:
           ref: ${{ github.sha }}
       - name: Unshallow
         run: git fetch --prune --unshallow
-      - name: Build image
-        run: |
-          BUILD_IMAGE="snugfox/mcl-build:${{ github.sha }}"
-          echo ::set-env name=BUILD_IMAGE::${BUILD_IMAGE}
-          docker build -f build/build.Dockerfile -t ${BUILD_IMAGE} .
       - name: Build and release
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          docker run --rm -e DOCKERHUB_USERNAME -e DOCKERHUB_PASSWORD \
-            -e GITHUB_TOKEN -v /var/run/docker.sock:/var/run/docker.sock \
-            -v "$(pwd):/go/src/github.com/snugfox/mcl" ${BUILD_IMAGE} \
-            ./build/release.sh
+          make BUILD_ENV=docker release
