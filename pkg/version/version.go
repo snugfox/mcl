@@ -1,6 +1,6 @@
 package version
 
-// Build information that is populated at runtime
+// Build information that is populated at compile-time
 var (
 	BuildDate string
 	GoVersion string

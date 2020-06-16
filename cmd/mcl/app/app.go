@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/snugfox/mcl/pkg/version"
 	"github.com/spf13/cobra"
 )
 
@@ -8,7 +9,7 @@ import (
 // default subcommands and flags.
 func NewMCLCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Version: "0.1.2", // TODO: Use version constant
+		Version: version.Version,
 		Use:     "mcl",
 		Short:   "Minecraft launcher for server deployments",
 	}
@@ -19,6 +20,7 @@ func NewMCLCommand() *cobra.Command {
 	cmd.AddCommand(newResolveVersionCommand())
 	cmd.AddCommand(newRunCommand())
 	cmd.AddCommand(newPrepareCommand())
+	cmd.AddCommand(newVersionCommand())
 
 	return cmd
 }
