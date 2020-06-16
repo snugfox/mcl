@@ -1,26 +1,22 @@
-# Created by https://www.toptal.com/developers/gitignore/api/go,visualstudiocode
-# Edit at https://www.toptal.com/developers/gitignore?templates=go,visualstudiocode
-
 ### Go ###
 # Binaries for programs and plugins
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
+**/*.exe
+**/*.exe~
+**/*.dll
+**/*.so
+**/*.dylib
 
 # Test binary, built with `go test -c`
-*.test
+**/*.test
 
 # Output of the go coverage tool, specifically when used with LiteIDE
-*.out
+**/*.out
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
+# Dependency directories
+vendor/
 
 ### Go Patch ###
-/vendor/
-/Godeps/
+Godeps/
 
 ### VisualStudioCode ###
 .vscode/*
@@ -32,16 +28,17 @@
 
 ### VisualStudioCode Patch ###
 # Ignore all local history of files
-.history
-
-# End of https://www.toptal.com/developers/gitignore/api/go,visualstudiocode
+**/.history
 
 ### Docker ###
-Dockerfile*
+**/Dockerfile*
 
 ### GitHub Actions ###
 .github/
 
 ### GoReleaser ###
 # GoReleaser dist directory
-/dist/
+dist/
+
+### Git ###
+.git/
