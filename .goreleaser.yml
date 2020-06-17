@@ -56,8 +56,6 @@ release:
     owner: snugfox
     name: mcl
   prerelease: auto
-changelog:
-  skip: true
 dockers:
   - goos: linux
     goarch: amd64
