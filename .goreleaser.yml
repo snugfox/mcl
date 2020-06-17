@@ -52,9 +52,37 @@ changelog:
 dockers:
   - goos: linux
     goarch: amd64
+    binaries: [mcl]
     image_templates:
       - snugfox/mcl:{{ .Tag }}
       - snugfox/mcl:v{{ .Major }}.{{ .Minor }}
       - docker.pkg.github.com/snugfox/mcl/mcl:{{ .Tag }}
       - docker.pkg.github.com/snugfox/mcl/mcl:v{{ .Major }}.{{ .Minor }}
-    dockerfile: build/Dockerfile
+    dockerfile: build/deploy/Dockerfile
+  - goos: linux
+    goarch: amd64
+    binaries: [mcl]
+    image_templates:
+      - snugfox/mcl:{{ .Tag }}-java8
+      - snugfox/mcl:v{{ .Major }}.{{ .Minor }}-java8
+      - docker.pkg.github.com/snugfox/mcl/mcl:{{ .Tag }}-java8
+      - docker.pkg.github.com/snugfox/mcl/mcl:v{{ .Major }}.{{ .Minor }}-java8
+    dockerfile: build/deploy/Dockerfile.java8
+  - goos: linux
+    goarch: amd64
+    binaries: [mcl]
+    image_templates:
+      - snugfox/mcl:{{ .Tag }}-java11
+      - snugfox/mcl:v{{ .Major }}.{{ .Minor }}-java11
+      - docker.pkg.github.com/snugfox/mcl/mcl:{{ .Tag }}-java11
+      - docker.pkg.github.com/snugfox/mcl/mcl:v{{ .Major }}.{{ .Minor }}-java11
+    dockerfile: build/deploy/Dockerfile.java11
+  - goos: linux
+    goarch: amd64
+    binaries: [mcl]
+    image_templates:
+      - snugfox/mcl:{{ .Tag }}-java14
+      - snugfox/mcl:v{{ .Major }}.{{ .Minor }}-java14
+      - docker.pkg.github.com/snugfox/mcl/mcl:{{ .Tag }}-java14
+      - docker.pkg.github.com/snugfox/mcl/mcl:v{{ .Major }}.{{ .Minor }}-java14
+    dockerfile: build/deploy/Dockerfile.java14
