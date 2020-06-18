@@ -38,8 +38,9 @@ func NewRunFlags() *RunFlags {
 	}
 }
 
-// AddFlags adds MCL run command flags to a given flag set
-func (rf *RunFlags) AddFlags(fs *pflag.FlagSet) {
+// FlagSet returns a new pflag.FlagSet with MCL run command flags
+func (rf *RunFlags) FlagSet() *pflag.FlagSet {
+	fs := pflag.NewFlagSet("run", pflag.ExitOnError)
 	fs.StringVar(&rf.StoreDir, "store-dir", rf.StoreDir, "Directory to store server resources")
 	fs.StringVar(&rf.StoreStructure, "store-structure", rf.StoreStructure, "Directory structure for storing server resources")
 	fs.StringVar(&rf.WorkingDir, "working-dir", rf.WorkingDir, "Working directory to run the server from")
@@ -47,6 +48,7 @@ func (rf *RunFlags) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&rf.Version, "version", rf.Version, "Version identifier")
 	fs.StringSliceVar(&rf.RuntimeArgs, "runtime-args", rf.RuntimeArgs, "Arguments to pass to the runtime environment if applicable (e.g. JVM options)")
 	fs.StringSliceVar(&rf.ServerArgs, "server-args", rf.ServerArgs, "Arguments to pass to the server application")
+	return fs
 }
 
 func newRunCommand() *cobra.Command {
@@ -151,7 +153,7 @@ func newRunCommand() *cobra.Command {
 		},
 	}
 
-	runFlags.AddFlags(cmd.PersistentFlags())
+	cmd.PersistentFlags().AddFlagSet(runFlags.FlagSet())
 
 	// TODO: Move the separate validate function
 	if err := cmd.MarkPersistentFlagRequired("edition"); err != nil {

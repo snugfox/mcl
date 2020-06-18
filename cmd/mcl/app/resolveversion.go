@@ -28,10 +28,12 @@ func NewResolveVersionFlags() *ResolveVersionFlags {
 	}
 }
 
-// AddFlags adds MCL resolve-version command flags to a given flag set
-func (rvf *ResolveVersionFlags) AddFlags(fs *pflag.FlagSet) {
+// FlagSet returns a new pflag.FlagSet with MCL resolve-version command flags
+func (rvf *ResolveVersionFlags) FlagSet() *pflag.FlagSet {
+	fs := pflag.NewFlagSet("resolve-version", pflag.ExitOnError)
 	fs.StringVar(&rvf.Edition, "edition", "", "Minecraft edition")
 	fs.StringVar(&rvf.Version, "version", "", "Only list versions currently available offline")
+	return fs
 }
 
 func newResolveVersionCommand() *cobra.Command {
@@ -68,7 +70,7 @@ func newResolveVersionCommand() *cobra.Command {
 		},
 	}
 
-	resolveVersionFlags.AddFlags(cmd.PersistentFlags())
+	cmd.PersistentFlags().AddFlagSet(resolveVersionFlags.FlagSet())
 
 	// TODO: Move to separate validate function
 	cmd.MarkPersistentFlagRequired("edition")

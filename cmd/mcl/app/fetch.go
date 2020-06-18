@@ -32,12 +32,14 @@ func NewFetchFlags() *FetchFlags {
 	}
 }
 
-// AddFlags adds MCL fetch command flags to a given flag set
-func (ff *FetchFlags) AddFlags(fs *pflag.FlagSet) {
+// FlagSet returns a new pflag.FlagSet with MCL fetch command flags
+func (ff *FetchFlags) FlagSet() *pflag.FlagSet {
+	fs := pflag.NewFlagSet("fetch", pflag.ExitOnError)
 	fs.StringVar(&ff.StoreDir, "store-dir", ff.StoreDir, "Directory to store server resources")
 	fs.StringVar(&ff.StoreStructure, "store-structure", ff.StoreStructure, "Directory structure for storing server resources")
 	fs.StringVar(&ff.Edition, "edition", ff.Edition, "Minecraft edition identifier")
 	fs.StringVar(&ff.Version, "version", ff.Version, "Version identifier")
+	return fs
 }
 
 func newFetchCommand() *cobra.Command {
@@ -119,7 +121,7 @@ func newFetchCommand() *cobra.Command {
 		},
 	}
 
-	fetchFlags.AddFlags(cmd.PersistentFlags())
+	cmd.PersistentFlags().AddFlagSet(fetchFlags.FlagSet())
 
 	// TODO: Move to seperate validate function
 	if err := cmd.MarkPersistentFlagRequired("edition"); err != nil {

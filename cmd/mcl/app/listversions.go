@@ -28,11 +28,13 @@ func NewListVersionsFlags() *ListVersionsFlags {
 	}
 }
 
-// AddFlags adds MCL list-versions command flags to a given flag set
-func (lvf *ListVersionsFlags) AddFlags(fs *pflag.FlagSet) {
+// FlagSet returns a new pflag.FlagSet with MCL list-versions command flags
+func (lvf *ListVersionsFlags) FlagSet() *pflag.FlagSet {
+	fs := pflag.NewFlagSet("list-versions", pflag.ExitOnError)
 	fs.StringVar(&lvf.Edition, "edition", lvf.Edition, "Minecraft edition")
 	fs.BoolVar(&lvf.Offline, "offline", lvf.Offline, "Only list versions currently available offline")
 	fs.MarkHidden("offline") // Not yet implemented
+	return fs
 }
 
 func newListVersionsCommand() *cobra.Command {
@@ -68,7 +70,7 @@ func newListVersionsCommand() *cobra.Command {
 		},
 	}
 
-	listVersionsFlags.AddFlags(cmd.PersistentFlags())
+	cmd.PersistentFlags().AddFlagSet(listVersionsFlags.FlagSet())
 
 	// TODO: Move to separate validate function
 	cmd.MarkPersistentFlagRequired("edition")

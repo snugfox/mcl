@@ -32,12 +32,14 @@ func NewPrepareFlags() *PrepareFlags {
 	}
 }
 
-// AddFlags adds MCL prepare command flags to a given flag set
-func (pf *PrepareFlags) AddFlags(fs *pflag.FlagSet) {
+// FlagSet returns a new pflag.FlagSet with MCL prepare command flags
+func (pf *PrepareFlags) FlagSet() *pflag.FlagSet {
+	fs := pflag.NewFlagSet("prepare", pflag.ExitOnError)
 	fs.StringVar(&pf.StoreDir, "store-dir", pf.StoreDir, "Directory to store server resources")
 	fs.StringVar(&pf.StoreStructure, "store-structure", pf.StoreStructure, "Directory structure for storing server resources")
 	fs.StringVar(&pf.Edition, "edition", pf.Edition, "Minecraft edition identifier")
 	fs.StringVar(&pf.Version, "version", pf.Version, "Version identifier")
+	return fs
 }
 
 func newPrepareCommand() *cobra.Command {
@@ -123,7 +125,7 @@ func newPrepareCommand() *cobra.Command {
 		},
 	}
 
-	prepareFlags.AddFlags(cmd.PersistentFlags())
+	cmd.PersistentFlags().AddFlagSet(prepareFlags.FlagSet())
 
 	// TODO: Move the separate validate function
 	if err := cmd.MarkPersistentFlagRequired("edition"); err != nil {
