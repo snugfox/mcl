@@ -14,7 +14,7 @@ func NewProviderBundle() map[string]provider.Provider {
 		bundle[editionID] = p
 	}
 
-	add(&provider.VanillaProvider{})
+	add(&provider.JavaProvider{})
 
 	return bundle
 }

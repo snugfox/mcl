@@ -15,23 +15,23 @@ import (
 	"time"
 )
 
-// VanillaProvider is a provider for Minecraft: Java Edition provided by Mojang.
-type VanillaProvider struct {
-	versions   []vanillaVersionInfo
-	versionMap map[string]*vanillaVersionInfo // Maps version ID to version info
+// JavaProvider is a provider for Minecraft: Java Edition provided by Mojang.
+type JavaProvider struct {
+	versions   []javaVersionInfo
+	versionMap map[string]*javaVersionInfo // Maps version ID to version info
 }
 
-type vanillaVersionInfo struct {
+type javaVersionInfo struct {
 	ID          string    `json:"id"` // Version ID
 	Type        string    `json:"type"`
 	URL         string    `json:"url"`
 	Time        time.Time `json:"time"`
 	ReleaseTime time.Time `json:"releaseTime"`
 
-	versionResource *vanillaVersionResource // Populated manually on-demand
+	versionResource *javaVersionResource // Populated manually on-demand
 }
 
-type vanillaVersionResource struct {
+type javaVersionResource struct {
 	SHA1 string `json:"sha1"` // Hex-encoded
 	Size int64  `json:"size"` // In bytes
 	URL  string `json:"url"`
@@ -49,8 +49,8 @@ func isAcceptedHostname(rawurl string, acceptedHostnames []string) bool {
 	return true
 }
 
-func (vp *VanillaProvider) fetchManifest(ctx context.Context, force bool) error {
-	if force || vp.versions == nil {
+func (jp *JavaProvider) fetchManifest(ctx context.Context, force bool) error {
+	if force || jp.versions == nil {
 		// Download and parse the JSON launcher manifest
 		req, err := http.NewRequest(http.MethodGet, launcherManifestURL, nil) // TODO: Test for accepted hostnames
 		if err != nil {
@@ -63,8 +63,8 @@ func (vp *VanillaProvider) fetchManifest(ctx context.Context, force bool) error 
 		}
 
 		var launcherManifest struct {
-			Latest   map[string]string    `json:"latest"`
-			Versions []vanillaVersionInfo `json:"versions"`
+			Latest   map[string]string `json:"latest"`
+			Versions []javaVersionInfo `json:"versions"`
 		}
 		if err := json.NewDecoder(res.Body).Decode(&launcherManifest); err != nil {
 			return err
@@ -72,27 +72,27 @@ func (vp *VanillaProvider) fetchManifest(ctx context.Context, force bool) error 
 
 		// Index and cache versions as we are likely to later lookup specific
 		// version information.
-		vp.versions = launcherManifest.Versions
-		vp.versionMap = make(map[string]*vanillaVersionInfo)
+		jp.versions = launcherManifest.Versions
+		jp.versionMap = make(map[string]*javaVersionInfo)
 		for i, vInfo := range launcherManifest.Versions {
-			vp.versionMap[vInfo.ID] = &launcherManifest.Versions[i]
+			jp.versionMap[vInfo.ID] = &launcherManifest.Versions[i]
 		}
 		for alias, version := range launcherManifest.Latest { // Resolve alias and add to the version map
-			vInfo, ok := vp.versionMap[version]
+			vInfo, ok := jp.versionMap[version]
 			if !ok {
 				return errors.New("manifest references unknown version")
 			}
-			vp.versionMap[alias] = vInfo
+			jp.versionMap[alias] = vInfo
 		}
 	}
 
 	return nil
 }
 
-func (vvi *vanillaVersionInfo) fetchVersionManifest(ctx context.Context, force bool) (*vanillaVersionResource, error) {
-	if force || vvi.versionResource == nil {
+func (jvi *javaVersionInfo) fetchVersionManifest(ctx context.Context, force bool) (*javaVersionResource, error) {
+	if force || jvi.versionResource == nil {
 		// Download and parse JSON version manifest
-		req, err := http.NewRequest(http.MethodGet, vvi.URL, nil) // TODO: Test for accepted hostnames
+		req, err := http.NewRequest(http.MethodGet, jvi.URL, nil) // TODO: Test for accepted hostnames
 		if err != nil {
 			return nil, err
 		}
@@ -105,7 +105,7 @@ func (vvi *vanillaVersionInfo) fetchVersionManifest(ctx context.Context, force b
 
 		var versionManifest struct {
 			Downloads struct {
-				Server vanillaVersionResource `json:"server"`
+				Server javaVersionResource `json:"server"`
 
 				// ...unused fields for client resources...
 			} `json:"downloads"`
@@ -116,26 +116,26 @@ func (vvi *vanillaVersionInfo) fetchVersionManifest(ctx context.Context, force b
 			return nil, err
 		}
 
-		vvi.versionResource = &versionManifest.Downloads.Server // We only need to track the server resource
+		jvi.versionResource = &versionManifest.Downloads.Server // We only need to track the server resource
 	}
 
-	return vvi.versionResource, nil
+	return jvi.versionResource, nil
 }
 
-func (VanillaProvider) jarPath(baseDir string) string {
+func (JavaProvider) jarPath(baseDir string) string {
 	return filepath.Join(baseDir, serverJARFilename)
 }
 
 // Edition returns the edition ID and name for Minecraft: Java Edition.
-func (VanillaProvider) Edition() (id string, name string) {
-	return "vanilla", "Minecraft: Java Edition"
+func (JavaProvider) Edition() (id string, name string) {
+	return "java", "Minecraft: Java Edition"
 }
 
 // Versions returns all available server versions for the edition. For
 // Minecraft: Java Edition, it also returns channels, such as "release" and
 // "snapshot".
-func (vp *VanillaProvider) Versions(ctx context.Context) ([]string, error) {
-	if err := vp.fetchManifest(ctx, false); err != nil {
+func (jp *JavaProvider) Versions(ctx context.Context) ([]string, error) {
+	if err := jp.fetchManifest(ctx, false); err != nil {
 		return nil, err
 	}
 
@@ -143,14 +143,14 @@ func (vp *VanillaProvider) Versions(ctx context.Context) ([]string, error) {
 	// returns server JAR as far back as 1.2.5; however, servers are available for
 	// older versions through a different endpoint.
 	// TODO: Support versions available through http://s3.amazonaws.com/Minecraft.Download/versions/<VERSION>/<VERSION>.json
-	vvi125, ok := vp.versionMap["1.2.5"]
+	jvi125, ok := jp.versionMap["1.2.5"]
 	if !ok {
 		return nil, errors.New("version 1.2.5 not found (oldest supported server)")
 	}
 
 	versionIDs := make([]string, 0)
-	for _, vInfo := range vp.versions {
-		if vInfo.ReleaseTime.After(vvi125.ReleaseTime) || vInfo.ReleaseTime.Equal(vvi125.ReleaseTime) { // Filter unsupported versions prior to 1.2.5
+	for _, vInfo := range jp.versions {
+		if vInfo.ReleaseTime.After(jvi125.ReleaseTime) || vInfo.ReleaseTime.Equal(jvi125.ReleaseTime) { // Filter unsupported versions prior to 1.2.5
 			versionIDs = append(versionIDs, vInfo.ID)
 		}
 	}
@@ -159,18 +159,18 @@ func (vp *VanillaProvider) Versions(ctx context.Context) ([]string, error) {
 
 // DefaultVersion returns the default versions specified by Mojang. For
 // Minecraft: Java Edition, it always returns "release".
-func (VanillaProvider) DefaultVersion() string {
+func (JavaProvider) DefaultVersion() string {
 	return "release"
 }
 
 // ResolveVersion resolves a version identifier to a fixed version
 // identifier (e.g. release -> 1.7).
-func (vp *VanillaProvider) ResolveVersion(ctx context.Context, version string) (string, error) {
-	if err := vp.fetchManifest(ctx, false); err != nil {
+func (jp *JavaProvider) ResolveVersion(ctx context.Context, version string) (string, error) {
+	if err := jp.fetchManifest(ctx, false); err != nil {
 		return "", err
 	}
 
-	vInfo, ok := vp.versionMap[version]
+	vInfo, ok := jp.versionMap[version]
 	if !ok {
 		return "", errors.New("version not found")
 	}
@@ -181,13 +181,13 @@ func (vp *VanillaProvider) ResolveVersion(ctx context.Context, version string) (
 // specified version are not available locally and require fetching. For
 // Minecraft: Java Edition, it checks if the server JAR exists locally, and if
 // so, compares the SHA-1 checksum with that provided by Mojang.
-func (vp *VanillaProvider) IsFetchNeeded(ctx context.Context, baseDir, version string) (bool, error) {
-	if err := vp.fetchManifest(ctx, false); err != nil {
+func (jp *JavaProvider) IsFetchNeeded(ctx context.Context, baseDir, version string) (bool, error) {
+	if err := jp.fetchManifest(ctx, false); err != nil {
 		return false, err
 	}
 
 	// Get and extract the hash for the server from the version manifest.
-	vInfo, ok := vp.versionMap[version]
+	vInfo, ok := jp.versionMap[version]
 	if !ok {
 		return false, errors.New("version not found")
 	}
@@ -203,7 +203,7 @@ func (vp *VanillaProvider) IsFetchNeeded(ctx context.Context, baseDir, version s
 
 	// Determine the hash of the JAR file available locally (if one exists)
 	// TODO: Do this in parallel with fetching the version manifest
-	jarPath := vp.jarPath(baseDir)
+	jarPath := jp.jarPath(baseDir)
 	jarFile, err := os.Open(jarPath)
 	if err != nil {
 		return true, nil // TODO: Check existence first
@@ -222,13 +222,13 @@ func (vp *VanillaProvider) IsFetchNeeded(ctx context.Context, baseDir, version s
 // Fetch fetches (downloads) server resources into a specified base directory.
 // For Minecraft: Java Edition, it downloads the server JAR from Mojang to the
 // base directory.
-func (vp *VanillaProvider) Fetch(ctx context.Context, baseDir, version string) error {
-	if err := vp.fetchManifest(ctx, false); err != nil {
+func (jp *JavaProvider) Fetch(ctx context.Context, baseDir, version string) error {
+	if err := jp.fetchManifest(ctx, false); err != nil {
 		return err
 	}
 
 	// Download and parse the version manifest
-	vInfo, ok := vp.versionMap[version]
+	vInfo, ok := jp.versionMap[version]
 	if !ok {
 		return errors.New("version not found")
 	}
@@ -241,7 +241,7 @@ func (vp *VanillaProvider) Fetch(ctx context.Context, baseDir, version string) e
 	if err := os.MkdirAll(baseDir, os.ModeDir|0755); err != nil {
 		return err
 	}
-	jarPath := vp.jarPath(baseDir)
+	jarPath := jp.jarPath(baseDir)
 	jarFile, err := os.OpenFile(jarPath, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return err
@@ -262,15 +262,15 @@ func (vp *VanillaProvider) Fetch(ctx context.Context, baseDir, version string) e
 // specified version are not available for immediate use and required
 // additional preparation. For Minecraft: Java Edition, it always returns false
 // and a nil error.
-func (vp *VanillaProvider) IsPrepareNeeded(_ context.Context, _, _ string) (bool, error) {
-	return false, nil // There is no preparation step for the vanilla edition
+func (jp *JavaProvider) IsPrepareNeeded(_ context.Context, _, _ string) (bool, error) {
+	return false, nil // There is no preparation step for the java edition
 }
 
 // Prepare prepares (preprocesses) fetched server resources such that they are
 // immediately useable without any further modifications. For Minecraft: Java
 // Edition, it is effectively a no-op.
-func (vp *VanillaProvider) Prepare(_ context.Context, _, _ string) error {
-	return nil // There is no preparation step for the vanilla edition
+func (jp *JavaProvider) Prepare(_ context.Context, _, _ string) error {
+	return nil // There is no preparation step for the java edition
 }
 
 // Run runs a server within a specified working directory. Server resources
@@ -278,8 +278,8 @@ func (vp *VanillaProvider) Prepare(_ context.Context, _, _ string) error {
 // same version prior to calling Run. Runtime arguments are passed as JVM
 // options and server arguments are passed to the server JAR. Either argument
 // parameter may be nil if no arguments need to be specified.
-func (vp *VanillaProvider) Run(ctx context.Context, baseDir, workingDir, version string, runtimeArgs, serverArgs []string) error {
-	jarPath, err := filepath.Abs(vp.jarPath(baseDir))
+func (jp *JavaProvider) Run(ctx context.Context, baseDir, workingDir, version string, runtimeArgs, serverArgs []string) error {
+	jarPath, err := filepath.Abs(jp.jarPath(baseDir))
 	if err != nil {
 		return err
 	}
@@ -292,7 +292,7 @@ func (vp *VanillaProvider) Run(ctx context.Context, baseDir, workingDir, version
 	cmd := exec.CommandContext(ctx, "java", args...) // TODO: Shutdown gracefully instead of kill when context cancelled
 	cmd.Dir = workingDir
 
-	// Vanilla server may use all standard pipes
+	// Java server may use all standard pipes
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
