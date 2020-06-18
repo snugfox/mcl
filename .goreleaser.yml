@@ -8,6 +8,7 @@ builds:
     binary: mcl
     flags:
       - -v
+      - -trimpath
     env:
       - CGO_ENABLED=0
     goos:
