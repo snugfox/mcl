@@ -51,7 +51,9 @@ func (rf *RunFlags) FlagSet() *pflag.FlagSet {
 	return fs
 }
 
-func newRunCommand() *cobra.Command {
+// NewRunCommand creates a new *cobra.Command for the MCL run command with
+// default flags.
+func NewRunCommand() *cobra.Command {
 	runFlags := NewRunFlags()
 
 	cmd := &cobra.Command{

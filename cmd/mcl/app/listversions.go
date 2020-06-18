@@ -37,7 +37,9 @@ func (lvf *ListVersionsFlags) FlagSet() *pflag.FlagSet {
 	return fs
 }
 
-func newListVersionsCommand() *cobra.Command {
+// NewListVersionsCommand creates a new *cobra.Command for the MCL list-versions
+// command with default flags.
+func NewListVersionsCommand() *cobra.Command {
 	listVersionsFlags := NewListVersionsFlags()
 
 	cmd := &cobra.Command{

@@ -15,12 +15,12 @@ func NewMCLCommand() *cobra.Command {
 	}
 
 	// Subcommands
-	cmd.AddCommand(newFetchCommand())
-	cmd.AddCommand(newListVersionsCommand())
-	cmd.AddCommand(newResolveVersionCommand())
-	cmd.AddCommand(newRunCommand())
-	cmd.AddCommand(newPrepareCommand())
-	cmd.AddCommand(newVersionCommand())
+	cmd.AddCommand(NewFetchCommand())
+	cmd.AddCommand(NewListVersionsCommand())
+	cmd.AddCommand(NewPrepareCommand())
+	cmd.AddCommand(NewResolveVersionCommand())
+	cmd.AddCommand(NewRunCommand())
+	cmd.AddCommand(NewVersionCommand())
 
 	return cmd
 }

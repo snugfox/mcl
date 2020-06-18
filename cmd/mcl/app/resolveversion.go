@@ -36,7 +36,9 @@ func (rvf *ResolveVersionFlags) FlagSet() *pflag.FlagSet {
 	return fs
 }
 
-func newResolveVersionCommand() *cobra.Command {
+// NewResolveVersionCommand creates a new *cobra.Command for the MCL
+// resolve-version command with default flags.
+func NewResolveVersionCommand() *cobra.Command {
 	resolveVersionFlags := NewResolveVersionFlags()
 
 	cmd := &cobra.Command{

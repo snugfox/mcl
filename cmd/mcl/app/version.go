@@ -9,7 +9,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newVersionCommand() *cobra.Command {
+// NewVersionCommand creates a new *cobra.Command for the MCL version command
+// with default flags.
+func NewVersionCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "version",
 		Short: "Prints MCL version and build information",

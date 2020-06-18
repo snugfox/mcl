@@ -42,7 +42,9 @@ func (ff *FetchFlags) FlagSet() *pflag.FlagSet {
 	return fs
 }
 
-func newFetchCommand() *cobra.Command {
+// NewFetchCommand creates a new *cobra.Command for the MCL fetch command with
+// default flags.
+func NewFetchCommand() *cobra.Command {
 	fetchFlags := NewFetchFlags()
 
 	cmd := &cobra.Command{

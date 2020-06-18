@@ -42,7 +42,9 @@ func (pf *PrepareFlags) FlagSet() *pflag.FlagSet {
 	return fs
 }
 
-func newPrepareCommand() *cobra.Command {
+// NewPrepareCommand creates a new *cobra.Command for the MCL prepare command
+// with default flags.
+func NewPrepareCommand() *cobra.Command {
 	prepareFlags := NewPrepareFlags()
 
 	cmd := &cobra.Command{
