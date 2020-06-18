@@ -1,4 +1,4 @@
-package options
+package app
 
 const (
 	// Subdirectories for edition and version within current directory

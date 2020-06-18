@@ -6,17 +6,42 @@ import (
 
 	"github.com/snugfox/mcl/internal/bundle"
 
-	"github.com/snugfox/mcl/cmd/mcl/app/options"
-
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"go.uber.org/zap"
 
 	"github.com/snugfox/mcl/internal/log"
 	"github.com/snugfox/mcl/pkg/store"
 )
 
+// FetchFlags contains the flags for the MCL fetch command
+type FetchFlags struct {
+	StoreDir       string
+	StoreStructure string
+	Edition        string
+	Version        string
+}
+
+// NewFetchFlags returns a new FetchFlags object with default parameters
+func NewFetchFlags() *FetchFlags {
+	return &FetchFlags{
+		StoreDir:       "", // Current directory
+		StoreStructure: defaultStoreStructure,
+		Edition:        "", // Required flag
+		Version:        "", // Required flag
+	}
+}
+
+// AddFlags adds MCL fetch command flags to a given flag set
+func (ff *FetchFlags) AddFlags(fs *pflag.FlagSet) {
+	fs.StringVar(&ff.StoreDir, "store-dir", ff.StoreDir, "Directory to store server resources")
+	fs.StringVar(&ff.StoreStructure, "store-structure", ff.StoreStructure, "Directory structure for storing server resources")
+	fs.StringVar(&ff.Edition, "edition", ff.Edition, "Minecraft edition identifier")
+	fs.StringVar(&ff.Version, "version", ff.Version, "Version identifier")
+}
+
 func newFetchCommand() *cobra.Command {
-	fetchFlags := options.NewFetchFlags()
+	fetchFlags := NewFetchFlags()
 
 	cmd := &cobra.Command{
 		Use:   "fetch",

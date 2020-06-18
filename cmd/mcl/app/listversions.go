@@ -5,17 +5,38 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/snugfox/mcl/cmd/mcl/app/options"
-
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"go.uber.org/zap"
 
 	"github.com/snugfox/mcl/internal/bundle"
 	"github.com/snugfox/mcl/internal/log"
 )
 
+// ListVersionsFlags contains the flags for the MCL list-versions command
+type ListVersionsFlags struct {
+	Edition string
+	Offline bool
+}
+
+// NewListVersionsFlags returns a new ListVersionsFlags object with default
+// parameters
+func NewListVersionsFlags() *ListVersionsFlags {
+	return &ListVersionsFlags{
+		Edition: "",    // Required flag
+		Offline: false, // Query versions available online
+	}
+}
+
+// AddFlags adds MCL list-versions command flags to a given flag set
+func (lvf *ListVersionsFlags) AddFlags(fs *pflag.FlagSet) {
+	fs.StringVar(&lvf.Edition, "edition", lvf.Edition, "Minecraft edition")
+	fs.BoolVar(&lvf.Offline, "offline", lvf.Offline, "Only list versions currently available offline")
+	fs.MarkHidden("offline") // Not yet implemented
+}
+
 func newListVersionsCommand() *cobra.Command {
-	listVersionsFlags := options.NewListVersionsFlags()
+	listVersionsFlags := NewListVersionsFlags()
 
 	cmd := &cobra.Command{
 		Use:   "list-versions",

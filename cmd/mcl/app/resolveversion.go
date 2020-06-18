@@ -5,17 +5,37 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/snugfox/mcl/cmd/mcl/app/options"
-
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"go.uber.org/zap"
 
 	"github.com/snugfox/mcl/internal/bundle"
 	"github.com/snugfox/mcl/internal/log"
 )
 
+// ResolveVersionFlags contains the flags for the MCL resolve-version command
+type ResolveVersionFlags struct {
+	Edition string
+	Version string
+}
+
+// NewResolveVersionFlags returns a new ResolveVersionFlags object with default
+// parameters
+func NewResolveVersionFlags() *ResolveVersionFlags {
+	return &ResolveVersionFlags{
+		Edition: "", // Required flag
+		Version: "", // Required flag
+	}
+}
+
+// AddFlags adds MCL resolve-version command flags to a given flag set
+func (rvf *ResolveVersionFlags) AddFlags(fs *pflag.FlagSet) {
+	fs.StringVar(&rvf.Edition, "edition", "", "Minecraft edition")
+	fs.StringVar(&rvf.Version, "version", "", "Only list versions currently available offline")
+}
+
 func newResolveVersionCommand() *cobra.Command {
-	resolveVersionFlags := options.NewResolveVersionFlags()
+	resolveVersionFlags := NewResolveVersionFlags()
 
 	cmd := &cobra.Command{
 		Use:   "resolve-version",
