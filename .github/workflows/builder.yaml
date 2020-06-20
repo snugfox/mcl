@@ -1,0 +1,22 @@
+name: Builder
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  builder:
+    name: Build and push builder
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Build
+        run: ./build/builder.sh
+      - name: Push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$GITHUB_TOKEN" | \
+            docker login docker.pkg.github.com -u snugfox --password-stdin
+          ./build/builder.sh push

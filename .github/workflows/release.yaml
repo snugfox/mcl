@@ -8,16 +8,18 @@ on:
 jobs:
   release:
     name: Release
-    needs: [test]
+    needs: [builder, test, build-snapshot]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Pull builder
+        run: ./build/builder.sh
       - name: Build and release
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: ./build/docker-make.sh release
+        run: ./build/builder.sh run make release
