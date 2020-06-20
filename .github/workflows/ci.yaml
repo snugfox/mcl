@@ -47,3 +47,7 @@ jobs:
         run: ./build/builder.sh init
       - name: Build
         run: ./build/builder.sh run make build-snapshot
+      - name: Upload snapshot artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          path: dist/*
