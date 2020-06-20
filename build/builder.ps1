@@ -1,4 +1,5 @@
 Set-StrictMode -Version 3.0
+$InformationPreference = "Continue"
 
 function Get-StringHash {
 	[OutputType([string])]
@@ -32,12 +33,13 @@ switch ($Command) {
 	}
 }
 
-if (docker image inspect -f "{{ .Id }}" "$Image" | Out-Null) {
-} elseif (docker pull -q "$Image" *>&1 | Out-Null) {
-	Write-Information "Pulled ${Image}"
-} else {
-	docker build -q -f "$Dockerfile" -t "$Image" . | Out-Null
-	Write-Information "Built ${Image}"
+if (!(docker image inspect -f "{{ .Id }}" "$Image" *>&1 | Out-Null)) {
+	if (docker pull -q "$Image" *>&1 | Out-Null) {
+		Write-Information "Pulled ${Image}"
+	} else {
+		docker build -q -f "$Dockerfile" -t "$Image" . | Out-Null
+		Write-Information "Built ${Image}"
+	}
 }
 
 switch ($Command) {
