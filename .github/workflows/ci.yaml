@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  builder:
+    name: Builder
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Build
+        run: ./build/builder.sh init
+      - name: Push
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+        run: |
+          echo "$DOCKERHUB_PASSWORD" | \
+            docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+          ./build/builder.sh push
+
+  tests:
+    name: Tests
+    needs: [builder]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Pull builder
+        run: ./build/builder.sh init
+      - name: Run tests
+        run: ./build/builder.sh run make test
+
+  build-snapshot:
+    name: Snapshot
+    needs: [builder]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Pull builder
+        run: ./build/builder.sh init
+      - name: Build
+        run: ./build/builder.sh run make build-snapshot
+      - name: Upload snapshot artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: dist-snapshot
+          path: dist/*
