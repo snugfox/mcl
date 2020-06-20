@@ -20,7 +20,6 @@ build-snapshot:
 .PHONY: release
 release: test
 		echo "$$DOCKERHUB_PASSWORD" | $(DOCKER) login -u "$$DOCKERHUB_USERNAME" --password-stdin
-		echo "$$GITHUB_TOKEN" | $(DOCKER) login docker.pkg.github.com -u snugfox --password-stdin
 		$(GORELEASER) release --rm-dist
 
 
