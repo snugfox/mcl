@@ -1,7 +1,7 @@
 before:
   hooks:
-    - go mod download
     - go generate ./...
+    - go mod download
 builds:
   - id: mcl
     main: ./cmd/mcl
@@ -9,6 +9,7 @@ builds:
     flags:
       - -v
       - -trimpath
+      - -mod=readonly
     env:
       - CGO_ENABLED=0
     goos:
