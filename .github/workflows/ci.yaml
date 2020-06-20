@@ -50,4 +50,5 @@ jobs:
       - name: Upload snapshot artifacts
         uses: actions/upload-artifact@v2
         with:
+          name: dist-snapshot
           path: dist/*
