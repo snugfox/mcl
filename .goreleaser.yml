@@ -57,6 +57,12 @@ release:
     owner: snugfox
     name: mcl
   prerelease: auto
+changelog:
+  filters:
+    exclude:
+      - '^ci:'
+      - '^doc:'
+      - 'typo'
 dockers:
   - goos: linux
     goarch: amd64
