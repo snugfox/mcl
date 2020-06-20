@@ -42,6 +42,9 @@ if (docker image inspect -f "{{ .Id }}" "$Image" | Out-Null) {
 
 switch ($Command) {
 	"push" {
+		Write-Warning "It is advised not to push builder images built on Windows. To force a push, use the push-force command."
+	}
+	"push-force" {
 		docker push "${Image}" | Out-Null
 		Write-Information "Pushed ${Image}"
 	}
