@@ -1,12 +1,28 @@
-name: Tests
+name: CI
 
 on:
   push:
   pull_request:
 
 jobs:
+  builder:
+    name: Builder
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Build
+        run: ./build/builder.sh
+      - name: Push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "$GITHUB_TOKEN" | \
+            docker login docker.pkg.github.com -u snugfox --password-stdin
+          ./build/builder.sh push
+
   tests:
-    name: Run tests
+    name: Tests
     needs: [builder]
     runs-on: ubuntu-latest
     steps:
@@ -18,7 +34,7 @@ jobs:
         run: ./build/builder.sh run make test
 
   build-snapshot:
-    name: Build snapshot
+    name: Snapshot
     needs: [builder]
     runs-on: ubuntu-latest
     steps:
