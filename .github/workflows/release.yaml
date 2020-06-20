@@ -15,7 +15,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Pull builder
-        run: ./build/builder.sh
+        run: ./build/builder.sh init
       - name: Build and release
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}

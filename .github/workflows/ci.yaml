@@ -12,7 +12,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Build
-        run: ./build/builder.sh
+        run: ./build/builder.sh init
       - name: Push
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -30,7 +30,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
       - name: Pull builder
-        run: ./build/builder.sh
+        run: ./build/builder.sh init
       - name: Run tests
         run: ./build/builder.sh run make test
 
@@ -44,6 +44,6 @@ jobs:
         with:
           fetch-depth: 0
       - name: Pull builder
-        run: ./build/builder.sh
+        run: ./build/builder.sh init
       - name: Build
         run: ./build/builder.sh run make build-snapshot

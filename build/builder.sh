@@ -19,14 +19,19 @@ init() {
 }
 
 case "${1-}" in
+	"")
+		echo "Must specify a command" 2>&1
+		;;
 	"image")
 		echo "$image"
-		exit 0
+		;;
+	"init")
+		init
 		;;
 	"push")
 		init
 		docker push "${image}" > /dev/null 2>&1
-		echo "Pushed ${image}"
+		echo "Pushed ${image}" 1>&2
 		;;
 	"run")
 		init
@@ -37,5 +42,9 @@ case "${1-}" in
 			-v /var/run/docker.sock:/var/run/docker.sock \
 			-v "${PWD}:/go/src/github.com/snugfox/mcl" \
 			"$image" $@
+		;;
+	*)
+		echo "Unknown command: ${1}" 2>&1
+		exit 1
 		;;
 esac
