@@ -15,10 +15,11 @@ jobs:
         run: ./build/builder.sh
       - name: Push
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
         run: |
-          echo "$GITHUB_TOKEN" | \
-            docker login docker.pkg.github.com -u snugfox --password-stdin
+          echo "$DOCKERHUB_PASSWORD" | \
+            docker login -u "$DOCKERHUB_USERNAME" --password-stdin
           ./build/builder.sh push
 
   tests:

@@ -17,7 +17,7 @@ function Get-StringHash {
 }
 
 $Dockerfile = "./build/builder/Dockerfile"
-$Name       = "docker.pkg.github.com/snugfox/mcl/builder"
+$Name       = "snugfox/mcl-builder"
 $Tag        = $(Get-StringHash `
 								$(-Join $(Get-Content ./go.sum,$Dockerfile -Raw)) `
 							). `

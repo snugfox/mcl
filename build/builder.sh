@@ -3,7 +3,7 @@
 set -eu
 
 dockerfile="./build/builder/Dockerfile"
-name="docker.pkg.github.com/snugfox/mcl/builder"
+name="snugfox/mcl-builder"
 tag="$(cat ./go.sum "$dockerfile" | sha256sum | cut -c-7)"
 image="${name}:${tag}"
 
