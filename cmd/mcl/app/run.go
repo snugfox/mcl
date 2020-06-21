@@ -16,33 +16,27 @@ import (
 
 // RunFlags contains the flags for the MCL run command
 type RunFlags struct {
-	StoreDir       string
-	StoreStructure string
-	WorkingDir     string
-	Edition        string
-	Version        string
-	RuntimeArgs    []string
-	ServerArgs     []string
+	WorkingDir  string
+	Edition     string
+	Version     string
+	RuntimeArgs []string
+	ServerArgs  []string
 }
 
 // NewRunFlags returns a new RunFlags object with default parameters
 func NewRunFlags() *RunFlags {
 	return &RunFlags{
-		StoreDir:       "", // Current directory
-		StoreStructure: defaultStoreStructure,
-		WorkingDir:     "",         // Current directory
-		Edition:        "",         // Required flag
-		Version:        "",         // Use edition's default version
-		RuntimeArgs:    []string{}, // No arguments
-		ServerArgs:     []string{}, // No arguments
+		WorkingDir:  "",         // Current directory
+		Edition:     "",         // Required flag
+		Version:     "",         // Use edition's default version
+		RuntimeArgs: []string{}, // No arguments
+		ServerArgs:  []string{}, // No arguments
 	}
 }
 
 // FlagSet returns a new pflag.FlagSet with MCL run command flags
 func (rf *RunFlags) FlagSet() *pflag.FlagSet {
 	fs := pflag.NewFlagSet("run", pflag.ExitOnError)
-	fs.StringVar(&rf.StoreDir, "store-dir", rf.StoreDir, "Directory to store server resources")
-	fs.StringVar(&rf.StoreStructure, "store-structure", rf.StoreStructure, "Directory structure for storing server resources")
 	fs.StringVar(&rf.WorkingDir, "working-dir", rf.WorkingDir, "Working directory to run the server from")
 	fs.StringVar(&rf.Edition, "edition", rf.Edition, "Minecraft edition identifier")
 	fs.StringVar(&rf.Version, "version", rf.Version, "Version identifier")
@@ -54,18 +48,20 @@ func (rf *RunFlags) FlagSet() *pflag.FlagSet {
 // NewRunCommand creates a new *cobra.Command for the MCL run command with
 // default flags.
 func NewRunCommand() *cobra.Command {
+	storeFlags := NewStoreFlags()
 	runFlags := NewRunFlags()
 
 	cmd := &cobra.Command{
 		Use:   "run",
 		Short: "Run a specified Minecraft edition server",
-		Run: func(cmd *cobra.Command, _ []string) {
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
 			ctx := context.Background()
 			logger := log.NewLogger(os.Stderr, false)
 			defer logger.Sync()
 
 			// Resolve edition to its provider
-			edition := runFlags.Edition
+			edition, version := parseEditionVersion(args[0])
 			logger = logger.With(zap.String("edition", edition))
 			p, ok := bundle.NewProviderBundle()[edition]
 			if !ok {
@@ -75,15 +71,11 @@ func NewRunCommand() *cobra.Command {
 			// Resolve version either from the provider (if not specified) or from the
 			// flag.
 			// TODO: De-dupe logger.With calls in if-else blocks
-			var version string
-			if runFlags.Version == "" {
+			if version == "" {
 				version = p.DefaultVersion()
-				logger = logger.With(zap.String("version", version))
 				logger.Info("Using default version")
-			} else {
-				version = runFlags.Version
-				logger = logger.With(zap.String("version", version))
 			}
+			logger = logger.With(zap.String("version", version))
 
 			resolvedVersion, err := p.ResolveVersion(ctx, version)
 			if err != nil {
@@ -97,11 +89,11 @@ func NewRunCommand() *cobra.Command {
 
 			// Form the base directory for the given store directory, structure,
 			// edition, and version.
-			baseDir, err := store.BaseDir(runFlags.StoreDir, runFlags.StoreStructure, edition, resolvedVersion)
+			baseDir, err := store.BaseDir(storeFlags.StoreDir, storeFlags.StoreStructure, edition, resolvedVersion)
 			if err != nil {
 				logger.Fatal(
 					"Failed to execute directory template",
-					zap.String("directoryTemplate", runFlags.StoreDir),
+					zap.String("directoryTemplate", storeFlags.StoreDir),
 					zap.Error(err),
 				)
 			}
@@ -155,12 +147,8 @@ func NewRunCommand() *cobra.Command {
 		},
 	}
 
+	cmd.PersistentFlags().AddFlagSet(storeFlags.FlagSet())
 	cmd.PersistentFlags().AddFlagSet(runFlags.FlagSet())
-
-	// TODO: Move the separate validate function
-	if err := cmd.MarkPersistentFlagRequired("edition"); err != nil {
-		panic(err)
-	}
 
 	return cmd
 }

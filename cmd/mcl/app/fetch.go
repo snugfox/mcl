@@ -15,49 +15,40 @@ import (
 )
 
 // FetchFlags contains the flags for the MCL fetch command
-type FetchFlags struct {
-	StoreDir       string
-	StoreStructure string
-	Edition        string
-	Version        string
-}
+type FetchFlags struct{}
 
 // NewFetchFlags returns a new FetchFlags object with default parameters
 func NewFetchFlags() *FetchFlags {
-	return &FetchFlags{
-		StoreDir:       "", // Current directory
-		StoreStructure: defaultStoreStructure,
-		Edition:        "", // Required flag
-		Version:        "", // Required flag
-	}
+	return &FetchFlags{}
 }
 
 // FlagSet returns a new pflag.FlagSet with MCL fetch command flags
 func (ff *FetchFlags) FlagSet() *pflag.FlagSet {
 	fs := pflag.NewFlagSet("fetch", pflag.ExitOnError)
-	fs.StringVar(&ff.StoreDir, "store-dir", ff.StoreDir, "Directory to store server resources")
-	fs.StringVar(&ff.StoreStructure, "store-structure", ff.StoreStructure, "Directory structure for storing server resources")
-	fs.StringVar(&ff.Edition, "edition", ff.Edition, "Minecraft edition identifier")
-	fs.StringVar(&ff.Version, "version", ff.Version, "Version identifier")
 	return fs
 }
 
 // NewFetchCommand creates a new *cobra.Command for the MCL fetch command with
 // default flags.
 func NewFetchCommand() *cobra.Command {
+	storeFlags := NewStoreFlags()
 	fetchFlags := NewFetchFlags()
 
 	cmd := &cobra.Command{
 		Use:   "fetch",
 		Short: "Fetch resources for a edition and version",
-		Run: func(cmd *cobra.Command, _ []string) {
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
 			ctx := context.Background()
 			logger := log.NewLogger(os.Stderr, false)
 			defer logger.Sync()
 
 			// Resolve edition to its provider
-			edition := fetchFlags.Edition
-			logger = logger.With(zap.String("edition", edition))
+			edition, version := parseEditionVersion(args[0])
+			logger = logger.With(
+				zap.String("edition", edition),
+				zap.String("version", version),
+			)
 			p, ok := bundle.NewProviderBundle()[edition]
 			if !ok {
 				logger.Fatal("Provider not found")
@@ -65,16 +56,11 @@ func NewFetchCommand() *cobra.Command {
 
 			// Resolve version either from the provider (if not specified) or from the
 			// flag.
-			// TODO: De-dupe logger.With calls in if-else blocks
-			var version string
-			if fetchFlags.Version == "" {
+			if version == "" {
 				version = p.DefaultVersion()
-				logger = logger.With(zap.String("version", version))
 				logger.Info("Using default version")
-			} else {
-				version = fetchFlags.Version
-				logger = logger.With(zap.String("version", version))
 			}
+			logger = logger.With(zap.String("version", version))
 
 			resolvedVersion, err := p.ResolveVersion(ctx, version)
 			if err != nil {
@@ -91,11 +77,11 @@ func NewFetchCommand() *cobra.Command {
 
 			// Form the base directory for the given store directory, structure,
 			// edition, and version.
-			baseDir, err := store.BaseDir(fetchFlags.StoreDir, fetchFlags.StoreStructure, edition, resolvedVersion)
+			baseDir, err := store.BaseDir(storeFlags.StoreDir, storeFlags.StoreStructure, edition, resolvedVersion)
 			if err != nil {
 				logger.Info(
 					"Failed to execute directory template",
-					zap.String("directoryTemplate", fetchFlags.StoreDir),
+					zap.String("directoryTemplate", storeFlags.StoreDir),
 					zap.Error(err),
 				)
 			}
@@ -123,12 +109,8 @@ func NewFetchCommand() *cobra.Command {
 		},
 	}
 
+	cmd.PersistentFlags().AddFlagSet(storeFlags.FlagSet())
 	cmd.PersistentFlags().AddFlagSet(fetchFlags.FlagSet())
-
-	// TODO: Move to seperate validate function
-	if err := cmd.MarkPersistentFlagRequired("edition"); err != nil {
-		panic(err)
-	}
 
 	return cmd
 }

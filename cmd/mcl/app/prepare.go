@@ -16,27 +16,21 @@ import (
 
 // PrepareFlags contains the flags for the MCL prepare command
 type PrepareFlags struct {
-	StoreDir       string
-	StoreStructure string
-	Edition        string
-	Version        string
+	Edition string
+	Version string
 }
 
 // NewPrepareFlags returns a new PrepareFlags object with default parameters
 func NewPrepareFlags() *PrepareFlags {
 	return &PrepareFlags{
-		StoreDir:       "", // Current directory
-		StoreStructure: defaultStoreStructure,
-		Edition:        "", // Required flag
-		Version:        "", // Required flag
+		Edition: "", // Required flag
+		Version: "", // Required flag
 	}
 }
 
 // FlagSet returns a new pflag.FlagSet with MCL prepare command flags
 func (pf *PrepareFlags) FlagSet() *pflag.FlagSet {
 	fs := pflag.NewFlagSet("prepare", pflag.ExitOnError)
-	fs.StringVar(&pf.StoreDir, "store-dir", pf.StoreDir, "Directory to store server resources")
-	fs.StringVar(&pf.StoreStructure, "store-structure", pf.StoreStructure, "Directory structure for storing server resources")
 	fs.StringVar(&pf.Edition, "edition", pf.Edition, "Minecraft edition identifier")
 	fs.StringVar(&pf.Version, "version", pf.Version, "Version identifier")
 	return fs
@@ -45,18 +39,20 @@ func (pf *PrepareFlags) FlagSet() *pflag.FlagSet {
 // NewPrepareCommand creates a new *cobra.Command for the MCL prepare command
 // with default flags.
 func NewPrepareCommand() *cobra.Command {
+	storeFlags := NewStoreFlags()
 	prepareFlags := NewPrepareFlags()
 
 	cmd := &cobra.Command{
 		Use:   "prepare",
 		Short: "Prepares server resources for a specified Minecraft edition and version",
-		Run: func(cmd *cobra.Command, _ []string) {
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
 			ctx := context.Background()
 			logger := log.NewLogger(os.Stderr, false)
 			defer logger.Sync()
 
 			// Resolve edition to its provider
-			edition := prepareFlags.Edition
+			edition, version := parseEditionVersion(args[0])
 			logger = logger.With(zap.String("edition", edition))
 			p, ok := bundle.NewProviderBundle()[edition]
 			if !ok {
@@ -66,15 +62,11 @@ func NewPrepareCommand() *cobra.Command {
 			// Resolve version either from the provider (if not specified) or from the
 			// flag.
 			// TODO: De-dupe logger.With calls in if-else blocks
-			var version string
-			if prepareFlags.Version == "" {
+			if version == "" {
 				version = p.DefaultVersion()
-				logger = logger.With(zap.String("version", version))
 				logger.Info("Using default version")
-			} else {
-				version = prepareFlags.Version
-				logger = logger.With(zap.String("version", version))
 			}
+			logger = logger.With(zap.String("version", version))
 
 			resolvedVersion, err := p.ResolveVersion(ctx, version)
 			if err != nil {
@@ -88,11 +80,11 @@ func NewPrepareCommand() *cobra.Command {
 
 			// Form the base directory for the given store directory, structure,
 			// edition, and version.
-			baseDir, err := store.BaseDir(prepareFlags.StoreDir, prepareFlags.StoreStructure, edition, resolvedVersion)
+			baseDir, err := store.BaseDir(storeFlags.StoreDir, storeFlags.StoreStructure, edition, resolvedVersion)
 			if err != nil {
 				logger.Fatal(
 					"Failed to execute directory template",
-					zap.String("directoryTemplate", prepareFlags.StoreDir),
+					zap.String("directoryTemplate", storeFlags.StoreDir),
 					zap.Error(err),
 				)
 			}
@@ -127,12 +119,8 @@ func NewPrepareCommand() *cobra.Command {
 		},
 	}
 
+	cmd.PersistentFlags().AddFlagSet(storeFlags.FlagSet())
 	cmd.PersistentFlags().AddFlagSet(prepareFlags.FlagSet())
-
-	// TODO: Move the separate validate function
-	if err := cmd.MarkPersistentFlagRequired("edition"); err != nil {
-		panic(err)
-	}
 
 	return cmd
 }
