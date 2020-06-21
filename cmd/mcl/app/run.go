@@ -2,14 +2,12 @@ package app
 
 import (
 	"context"
-	"os"
+	"log"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	"go.uber.org/zap"
 
 	"github.com/snugfox/mcl/internal/bundle"
-	"github.com/snugfox/mcl/internal/log"
 	"github.com/snugfox/mcl/pkg/provider"
 	"github.com/snugfox/mcl/pkg/store"
 )
@@ -17,8 +15,6 @@ import (
 // RunFlags contains the flags for the MCL run command
 type RunFlags struct {
 	WorkingDir  string
-	Edition     string
-	Version     string
 	RuntimeArgs []string
 	ServerArgs  []string
 }
@@ -27,8 +23,6 @@ type RunFlags struct {
 func NewRunFlags() *RunFlags {
 	return &RunFlags{
 		WorkingDir:  "",         // Current directory
-		Edition:     "",         // Required flag
-		Version:     "",         // Use edition's default version
 		RuntimeArgs: []string{}, // No arguments
 		ServerArgs:  []string{}, // No arguments
 	}
@@ -38,8 +32,6 @@ func NewRunFlags() *RunFlags {
 func (rf *RunFlags) FlagSet() *pflag.FlagSet {
 	fs := pflag.NewFlagSet("run", pflag.ExitOnError)
 	fs.StringVar(&rf.WorkingDir, "working-dir", rf.WorkingDir, "Working directory to run the server from")
-	fs.StringVar(&rf.Edition, "edition", rf.Edition, "Minecraft edition identifier")
-	fs.StringVar(&rf.Version, "version", rf.Version, "Version identifier")
 	fs.StringSliceVar(&rf.RuntimeArgs, "runtime-args", rf.RuntimeArgs, "Arguments to pass to the runtime environment if applicable (e.g. JVM options)")
 	fs.StringSliceVar(&rf.ServerArgs, "server-args", rf.ServerArgs, "Arguments to pass to the server application")
 	return fs
@@ -57,15 +49,12 @@ func NewRunCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			ctx := context.Background()
-			logger := log.NewLogger(os.Stderr, false)
-			defer logger.Sync()
 
 			// Resolve edition to its provider
 			edition, version := parseEditionVersion(args[0])
-			logger = logger.With(zap.String("edition", edition))
 			p, ok := bundle.NewProviderBundle()[edition]
 			if !ok {
-				logger.Fatal("Provider not found")
+				log.Fatalln("Provider not found")
 			}
 
 			// Resolve version either from the provider (if not specified) or from the
@@ -73,76 +62,50 @@ func NewRunCommand() *cobra.Command {
 			// TODO: De-dupe logger.With calls in if-else blocks
 			if version == "" {
 				version = p.DefaultVersion()
-				logger.Info("Using default version")
+				log.Println("Using default version")
 			}
-			logger = logger.With(zap.String("version", version))
 
 			resolvedVersion, err := p.ResolveVersion(ctx, version)
 			if err != nil {
-				logger.Fatal(
-					"Failed to resolve version",
-					zap.Error(err),
-				)
+				log.Fatalln("Failed to resolve version", err)
 			}
-			logger = logger.With(zap.String("resolvedVersion", resolvedVersion))
-			logger.Info("Resolved version")
+			log.Println("Resolved version")
 
 			// Form the base directory for the given store directory, structure,
 			// edition, and version.
 			baseDir, err := store.BaseDir(storeFlags.StoreDir, storeFlags.StoreStructure, edition, resolvedVersion)
 			if err != nil {
-				logger.Fatal(
-					"Failed to execute directory template",
-					zap.String("directoryTemplate", storeFlags.StoreDir),
-					zap.Error(err),
-				)
+				log.Fatalln("Failed to execute directory template:", err)
 			}
 
 			// Fetch and/or preapre server resoruces as needed
 			actionReqs, err := provider.CheckRequirements(ctx, p, baseDir, version)
 			if err != nil {
-				logger.Fatal(
-					"Failed to determine fetch and prepare requirements",
-					zap.Error(err),
-				)
+				log.Fatal("Failed to determine fetch and prepare requirements:", err)
 			}
 			switch {
 			case actionReqs.FetchRequired:
 				if err := p.Fetch(ctx, baseDir, version); err != nil {
-					logger.Fatal(
-						"Failure while fetching resources",
-						zap.Error(err),
-					)
+					log.Fatalln("Failure while fetching resources:", err)
 				}
-				logger.Info("Fetched server resources")
+				log.Println("Fetched server resources")
 				fallthrough
 			case actionReqs.PrepareRequired:
 				if err := p.Prepare(ctx, baseDir, version); err != nil {
-					logger.Fatal(
-						"Failure while preparing resources",
-						zap.Error(err),
-					)
+					log.Fatalln("Failure while preparing resources:", err)
 				}
-				logger.Info("Prepared server resources")
+				log.Println("Prepared server resources")
 			}
 
 			// Run server according to the provider
 			workingDir := runFlags.WorkingDir
 			runtimeArgs := runFlags.RuntimeArgs
 			serverArgs := runFlags.ServerArgs
-			logger = logger.With(
-				zap.String("workingDir", workingDir),
-				zap.Strings("runtimeArgs", runtimeArgs),
-				zap.Strings("serverArgs", serverArgs),
-			)
-			logger.Info("Running server")
+			log.Println("Running server")
 			if err := p.Run(ctx, baseDir, workingDir, version, runtimeArgs, serverArgs); err != nil {
-				logger.Fatal(
-					"Failure while running server",
-					zap.Error(err),
-				)
+				log.Fatalln("Failure while running server:", err)
 			} else {
-				logger.Info("Server exited successfully")
+				log.Println("Server exited successfully")
 			}
 		},
 	}
