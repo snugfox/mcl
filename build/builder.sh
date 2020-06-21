@@ -2,6 +2,23 @@
 
 set -eu
 
+# Parse command and options
+cmd="${1-}"
+if ! opts=$(getopt -n "$(basename "$0")" -- "$@"); then
+	exit 1
+fi
+eval set -- "$opts"
+while true; do
+	case "$1" in
+		"--")
+			shift
+			break
+			;;
+	esac
+	shift
+done
+
+# Docker image metadata
 dockerfile="./build/builder/Dockerfile"
 name="snugfox/mcl-builder"
 tag="$(cat ./go.sum "$dockerfile" | sha256sum | cut -c-7)"
@@ -18,7 +35,7 @@ init() {
 	fi
 }
 
-case "${1-}" in
+case "$cmd" in
 	"")
 		echo "Must specify a command" 2>&1
 		;;
@@ -35,7 +52,6 @@ case "${1-}" in
 		;;
 	"run")
 		init
-		shift
 		exec docker run --rm \
 			-e DOCKERHUB_USERNAME -e DOCKERHUB_PASSWORD \
 			-e GITHUB_TOKEN \
