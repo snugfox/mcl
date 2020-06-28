@@ -1,8 +1,13 @@
 package app
 
 import (
+	"github.com/snugfox/mcl/internal/bundle"
 	"github.com/snugfox/mcl/pkg/version"
 	"github.com/spf13/cobra"
+)
+
+var (
+	cmdBundle = bundle.NewProviderBundle()
 )
 
 // NewMCLCommand creates a new *cobra.Command for the MCL application with
@@ -13,6 +18,9 @@ func NewMCLCommand() *cobra.Command {
 		Use:     "mcl",
 		Short:   "Minecraft launcher for server deployments",
 	}
+
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
 
 	// Subcommands
 	cmd.AddCommand(NewFetchCommand())

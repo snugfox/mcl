@@ -2,9 +2,8 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"log"
-
-	"github.com/snugfox/mcl/internal/bundle"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -13,78 +12,84 @@ import (
 )
 
 // FetchFlags contains the flags for the MCL fetch command
-type FetchFlags struct{}
+type FetchFlags struct {
+	*StoreFlags2
+}
 
 // NewFetchFlags returns a new FetchFlags object with default parameters
 func NewFetchFlags() *FetchFlags {
-	return &FetchFlags{}
+	return &FetchFlags{
+		StoreFlags2: NewStoreFlags2(),
+	}
 }
 
 // FlagSet returns a new pflag.FlagSet with MCL fetch command flags
 func (ff *FetchFlags) FlagSet() *pflag.FlagSet {
 	fs := pflag.NewFlagSet("fetch", pflag.ExitOnError)
+	fs.AddFlagSet(ff.StoreFlags2.FlagSet())
 	return fs
 }
 
 // NewFetchCommand creates a new *cobra.Command for the MCL fetch command with
 // default flags.
 func NewFetchCommand() *cobra.Command {
-	storeFlags := NewStoreFlags()
-	fetchFlags := NewFetchFlags()
-
+	ff := NewFetchFlags()
 	cmd := &cobra.Command{
 		Use:   "fetch",
 		Short: "Fetch resources for a edition and version",
 		Args:  cobra.ExactArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
-			ctx := context.Background()
-
-			// Resolve edition to its provider
-			edition, version := parseEditionVersion(args[0])
-			p, ok := bundle.NewProviderBundle()[edition]
-			if !ok {
-				log.Fatalln("Provider not found")
-			}
-
-			// Resolve version either from the provider (if not specified) or from the
-			// flag.
-			if version == "" {
-				version = p.DefaultVersion()
-				log.Println("Using default version")
-			}
-
-			resolvedVersion, err := p.ResolveVersion(ctx, version)
-			if err != nil {
-				log.Fatalln("Failed to resolve version:", err)
-			}
-			log.Println("Resolved version", resolvedVersion)
-
-			// Form the base directory for the given store directory, structure,
-			// edition, and version.
-			baseDir, err := store.BaseDir(storeFlags.StoreDir, storeFlags.StoreStructure, edition, resolvedVersion)
-			if err != nil {
-				log.Fatalln("Failed to execute directory template:", err)
-			}
-
-			// Fetch server resources if needed
-			isFetchNeeded, err := p.IsFetchNeeded(ctx, baseDir, version)
-			if err != nil {
-				log.Fatalf("Failed to determine if fetch is needed: %v; fetching anyways", err)
-			}
-			if isFetchNeeded {
-				log.Println("Fetching resources")
-				if err := p.Fetch(ctx, baseDir, version); err != nil {
-					log.Fatalln("Failed to fetch resources:", err)
-				}
-				log.Println("Fetched resources")
-			} else {
-				log.Println("Already fetched")
-			}
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ed, ver := parseEditionVersion(args[0])
+			return runFetch(cmd.Context(), ff, ed, ver)
 		},
 	}
 
-	cmd.PersistentFlags().AddFlagSet(storeFlags.FlagSet())
-	cmd.PersistentFlags().AddFlagSet(fetchFlags.FlagSet())
+	flags := cmd.Flags()
+	flags.SetInterspersed(false)
+
+	flags.AddFlagSet(ff.FlagSet())
 
 	return cmd
+}
+
+func runFetch(ctx context.Context, ff *FetchFlags, ed, ver string) error {
+	// Resolve edition and version
+	p, ok := cmdBundle[ed]
+	if !ok {
+		return fmt.Errorf("no provider exists for edition %q", ed)
+	}
+	if ver == "" {
+		ver = p.DefaultVersion()
+		log.Printf("No version specified; using default %s", ver)
+	}
+	var err error
+	verTmp := ver
+	ver, err = p.ResolveVersion(ctx, ver)
+	if err != nil {
+		return err
+	}
+	if ver != verTmp {
+		log.Printf("Version %s resolves to %s", verTmp, ver)
+	}
+
+	// Fetch the server if needed
+	outDir, err := store.BaseDir(".", ff.StoreDir, ed, ver)
+	if err != nil {
+		return err
+	}
+	needsFetch, err := p.IsFetchNeeded(ctx, outDir, ver)
+	if err != nil {
+		return err
+	}
+	if needsFetch {
+		log.Printf("Fetching %s/%s to %s", ed, ver, outDir)
+		if err := p.Fetch(ctx, outDir, ver); err != nil {
+			return err
+		}
+		log.Printf("Fetched %s/%s", ed, ver)
+	} else {
+		log.Printf("%s/%s already exists in %s", ed, ver, outDir)
+	}
+
+	return nil
 }
