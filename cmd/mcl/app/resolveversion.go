@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/snugfox/mcl/internal/bundle"
+	"github.com/snugfox/mcl/pkg/provider"
 )
 
 // ResolveVersionFlags contains the flags for the MCL resolve-version command
@@ -58,4 +59,15 @@ func NewResolveVersionCommand() *cobra.Command {
 	cmd.PersistentFlags().AddFlagSet(resolveVersionFlags.FlagSet())
 
 	return cmd
+}
+
+func resolveVersion(ctx context.Context, prov provider.Provider, ver string) (string, error) {
+	resVer, err := prov.ResolveVersion(ctx, ver)
+	if err != nil {
+		return "", err
+	}
+	if resVer != ver {
+		log.Println("Version %s resolves to %s", ver, resVer)
+	}
+	return resVer, nil
 }

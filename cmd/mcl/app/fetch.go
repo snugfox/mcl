@@ -46,13 +46,9 @@ func fetch(ctx context.Context, prov provider.Provider, ver string) error {
 		ver = prov.DefaultVersion()
 		log.Printf("No version specified; using default %s", ver)
 	}
-	verTmp := ver
-	ver, err := prov.ResolveVersion(ctx, ver)
+	ver, err := resolveVersion(ctx, prov, ver)
 	if err != nil {
 		return err
-	}
-	if ver != verTmp {
-		log.Printf("Version %s resolves to %s", verTmp, ver)
 	}
 
 	// Fetch the server if needed
