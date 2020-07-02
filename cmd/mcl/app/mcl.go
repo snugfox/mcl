@@ -5,6 +5,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var mclConfig = NewMCLConfig()
+
 // NewMCLCommand creates a new *cobra.Command for the MCL application with
 // default subcommands and flags.
 func NewMCLCommand() *cobra.Command {
@@ -13,6 +15,9 @@ func NewMCLCommand() *cobra.Command {
 		Use:     "mcl",
 		Short:   "Minecraft launcher for server deployments",
 	}
+
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
 
 	// Subcommands
 	cmd.AddCommand(NewFetchCommand())

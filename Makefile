@@ -3,9 +3,6 @@ GO         := go
 GORELEASER := goreleaser
 SHELL      := /bin/sh # Use POSIX shell for portability
 
-# Go version metadata required for build
-export GOVER := $(shell $(GO) version | cut -d" " -f3)
-
 
 .PHONY: build
 build:

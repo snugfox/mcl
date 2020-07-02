@@ -3,80 +3,53 @@ package app
 import (
 	"context"
 	"fmt"
-	"os"
+	"log"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
-	"go.uber.org/zap"
 
-	"github.com/snugfox/mcl/internal/bundle"
-	"github.com/snugfox/mcl/internal/log"
+	"github.com/snugfox/mcl/pkg/provider"
 )
-
-// ResolveVersionFlags contains the flags for the MCL resolve-version command
-type ResolveVersionFlags struct {
-	Edition string
-	Version string
-}
-
-// NewResolveVersionFlags returns a new ResolveVersionFlags object with default
-// parameters
-func NewResolveVersionFlags() *ResolveVersionFlags {
-	return &ResolveVersionFlags{
-		Edition: "", // Required flag
-		Version: "", // Required flag
-	}
-}
-
-// FlagSet returns a new pflag.FlagSet with MCL resolve-version command flags
-func (rvf *ResolveVersionFlags) FlagSet() *pflag.FlagSet {
-	fs := pflag.NewFlagSet("resolve-version", pflag.ExitOnError)
-	fs.StringVar(&rvf.Edition, "edition", "", "Minecraft edition")
-	fs.StringVar(&rvf.Version, "version", "", "Only list versions currently available offline")
-	return fs
-}
 
 // NewResolveVersionCommand creates a new *cobra.Command for the MCL
 // resolve-version command with default flags.
 func NewResolveVersionCommand() *cobra.Command {
-	resolveVersionFlags := NewResolveVersionFlags()
-
 	cmd := &cobra.Command{
 		Use:   "resolve-version",
 		Short: "Resolve an alias to its version",
-		Run: func(cmd *cobra.Command, _ []string) {
-			ctx := context.Background()
-			logger := log.NewLogger(os.Stderr, false)
-			defer logger.Sync()
-
-			// Resolve edition to its provider
-			edition := resolveVersionFlags.Edition
-			logger = logger.With(zap.String("edition", edition))
-			p, ok := bundle.NewProviderBundle()[edition]
-			if !ok {
-				logger.Fatal("Provider not found")
-			}
-
-			// Resolve version according to the provider
-			version := resolveVersionFlags.Version
-			resolvedVersion, err := p.ResolveVersion(ctx, version)
-			if err != nil {
-				logger.Fatal(
-					"Failed to resolve version",
-					zap.String("version", version),
-					zap.Error(err),
-				)
-			}
-
-			fmt.Println(resolvedVersion)
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ed, ver := parseEditionVersion(args[0])
+			return runResolveVersion(cmd.Context(), ed, ver)
 		},
 	}
 
-	cmd.PersistentFlags().AddFlagSet(resolveVersionFlags.FlagSet())
-
-	// TODO: Move to separate validate function
-	cmd.MarkPersistentFlagRequired("edition")
-	cmd.MarkPersistentFlagRequired("version")
+	flags := cmd.Flags()
+	flags.SetInterspersed(false)
 
 	return cmd
+}
+
+func runResolveVersion(ctx context.Context, ed, ver string) error {
+	p, err := prov(ed)
+	if err != nil {
+		return err
+	}
+	resVer, err := resolveVersion(ctx, p, ver)
+	if err != nil {
+		return err
+	}
+	fmt.Println(resVer)
+
+	return nil
+}
+
+func resolveVersion(ctx context.Context, prov provider.Provider, ver string) (string, error) {
+	resVer, err := prov.ResolveVersion(ctx, ver)
+	if err != nil {
+		return "", err
+	}
+	if resVer != ver {
+		log.Printf("Version %s resolves to %s", ver, resVer)
+	}
+	return resVer, nil
 }

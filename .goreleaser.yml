@@ -39,10 +39,9 @@ builds:
         goarch: arm64
     ldflags:
       - "{{ if not .IsSnapshot }}-s -w{{ end }}"
-      - -X github.com/snugfox/mcl/pkg/version.BuildDate="{{ .Date }}"
-      - -X github.com/snugfox/mcl/pkg/version.GoVersion="{{ .Env.GOVER }}"
-      - -X github.com/snugfox/mcl/pkg/version.Revision="{{ .ShortCommit }}"
-      - -X github.com/snugfox/mcl/pkg/version.Version="{{ .Version }}"
+      - -X github.com/snugfox/mcl/pkg/version.BuildDate={{ .Date }}
+      - -X github.com/snugfox/mcl/pkg/version.Revision={{ .ShortCommit }}
+      - -X github.com/snugfox/mcl/pkg/version.Version={{ .Version }}
 archives:
   - format: tar.gz
     format_overrides:
