@@ -16,6 +16,7 @@ var (
 // MCLConfig contains the configuration for MCL and its subcommands
 type MCLConfig struct {
 	*storeOpts
+	*runOpts
 	*versionOpts
 }
 
@@ -23,6 +24,7 @@ type MCLConfig struct {
 func NewMCLConfig() *MCLConfig {
 	return &MCLConfig{
 		storeOpts:   newStoreOpts(),
+		runOpts:     newRunOpts(),
 		versionOpts: newVersionOpts(),
 	}
 }
@@ -39,6 +41,26 @@ func newStoreOpts() *storeOpts {
 
 func (so *storeOpts) addFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&so.StoreDir, "store-dir", so.StoreDir, "Directory to store server resources")
+}
+
+type runOpts struct {
+	WorkDir     string
+	RuntimeArgs []string
+	ServerArgs  []string
+}
+
+func newRunOpts() *runOpts {
+	return &runOpts{
+		WorkDir:     "",         // Current directory
+		RuntimeArgs: []string{}, // No arguments
+		ServerArgs:  []string{}, // No arguments
+	}
+}
+
+func (rf *runOpts) addFlags(fs *pflag.FlagSet) {
+	fs.StringVar(&rf.WorkDir, "working-dir", rf.WorkDir, "Working directory to run the server from")
+	fs.StringSliceVar(&rf.RuntimeArgs, "runtime-args", rf.RuntimeArgs, "Arguments to pass to the runtime environment if applicable (e.g. JVM options)")
+	fs.StringSliceVar(&rf.ServerArgs, "server-args", rf.ServerArgs, "Arguments to pass to the server application")
 }
 
 type versionOpts struct {
@@ -69,26 +91,4 @@ func parseEditionVersion(ev string) (string, string) {
 		return ss[0], ""
 	}
 	return ss[0], ss[1]
-}
-
-// StoreFlags contains the flags for the server resource store
-type StoreFlags struct {
-	StoreDir       string
-	StoreStructure string
-}
-
-// NewStoreFlags returns a new StoreFlags object with default parameters
-func NewStoreFlags() *StoreFlags {
-	return &StoreFlags{
-		StoreDir:       "",                           // Current directory
-		StoreStructure: "{{.Edition}}/{{.Version}}/", // Nested directories for both edition and version
-	}
-}
-
-// FlagSet returns a new pflag.FlagSet with server resource store flags
-func (sf *StoreFlags) FlagSet() *pflag.FlagSet {
-	fs := pflag.NewFlagSet("store", pflag.ExitOnError)
-	fs.StringVar(&sf.StoreDir, "store-dir", sf.StoreDir, "Directory to store server resources")
-	fs.StringVar(&sf.StoreStructure, "store-structure", sf.StoreStructure, "Directory structure for storing server resources")
-	return fs
 }
