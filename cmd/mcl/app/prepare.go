@@ -5,91 +5,74 @@ import (
 	"log"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 
-	"github.com/snugfox/mcl/internal/bundle"
 	"github.com/snugfox/mcl/pkg/provider"
 	"github.com/snugfox/mcl/pkg/store"
 )
 
-// PrepareFlags contains the flags for the MCL prepare command
-type PrepareFlags struct{}
-
-// NewPrepareFlags returns a new PrepareFlags object with default parameters
-func NewPrepareFlags() *PrepareFlags {
-	return &PrepareFlags{}
-}
-
-// FlagSet returns a new pflag.FlagSet with MCL prepare command flags
-func (pf *PrepareFlags) FlagSet() *pflag.FlagSet {
-	fs := pflag.NewFlagSet("prepare", pflag.ExitOnError)
-	return fs
-}
-
 // NewPrepareCommand creates a new *cobra.Command for the MCL prepare command
 // with default flags.
 func NewPrepareCommand() *cobra.Command {
-	storeFlags := NewStoreFlags()
-	prepareFlags := NewPrepareFlags()
-
 	cmd := &cobra.Command{
 		Use:   "prepare",
 		Short: "Prepares server resources for a specified Minecraft edition and version",
 		Args:  cobra.ExactArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
-			ctx := context.Background()
-
-			// Resolve edition to its provider
-			edition, version := parseEditionVersion(args[0])
-			p, ok := bundle.NewProviderBundle()[edition]
-			if !ok {
-				log.Fatalln("Provider not found")
-			}
-
-			// Resolve version either from the provider (if not specified) or from the
-			// flag.
-			// TODO: De-dupe logger.With calls in if-else blocks
-			if version == "" {
-				version = p.DefaultVersion()
-				log.Println("Using default version")
-			}
-
-			resolvedVersion, err := p.ResolveVersion(ctx, version)
-			if err != nil {
-				log.Fatalln("Failed to resolve version:", err)
-			}
-			log.Println("Resolved version")
-
-			// Form the base directory for the given store directory, structure,
-			// edition, and version.
-			baseDir, err := store.BaseDir(storeFlags.StoreDir, storeFlags.StoreStructure, edition, resolvedVersion)
-			if err != nil {
-				log.Fatalln("Failed to execute directory template:", err)
-			}
-
-			// Fetch and/or preapre server resoruces as needed
-			actionReqs, err := provider.CheckRequirements(ctx, p, baseDir, version)
-			if err != nil {
-				log.Fatalln("Failed to determine fetch and prepare requirements:", err)
-			}
-			switch {
-			case actionReqs.FetchRequired:
-				if err := p.Fetch(ctx, baseDir, version); err != nil {
-					log.Fatalln("Failure while fetching resources:", err)
-				}
-				log.Println("Fetched server resources")
-				fallthrough
-			case actionReqs.PrepareRequired:
-				if err := p.Prepare(ctx, baseDir, version); err != nil {
-					log.Fatalln("Failure while preparing resources:", err)
-				}
-				log.Println("Prepared server resources")
-			}
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ed, ver := parseEditionVersion(args[0])
+			return runPrepare(cmd.Context(), ed, ver)
 		},
 	}
 
-	cmd.PersistentFlags().AddFlagSet(storeFlags.FlagSet())
-	cmd.PersistentFlags().AddFlagSet(prepareFlags.FlagSet())
+	flags := cmd.Flags()
+	flags.SetInterspersed(false)
+
+	mclConfig.storeOpts.addFlags(flags)
 
 	return cmd
+}
+
+func runPrepare(ctx context.Context, ed, ver string) error {
+	p, err := prov(ed)
+	if err != nil {
+		return err
+	}
+
+	if err := fetch(ctx, p, ver); err != nil {
+		return err
+	}
+	return prepare(ctx, p, ver)
+}
+
+func prepare(ctx context.Context, prov provider.Provider, ver string) error {
+	// Resolve version
+	ed, _ := prov.Edition()
+	if ver == "" {
+		ver = prov.DefaultVersion()
+		log.Printf("No version specified; using default %s", ver)
+	}
+	ver, err := resolveVersion(ctx, prov, ver)
+	if err != nil {
+		return err
+	}
+
+	// Prepare the server if needed
+	outDir, err := store.BaseDir(".", mclConfig.StoreDir, ed, ver)
+	if err != nil {
+		return err
+	}
+	needsPrep, err := prov.IsPrepareNeeded(ctx, outDir, ver)
+	if err != nil {
+		return err
+	}
+	if needsPrep {
+		log.Printf("Preparing %s/%s to %s", ed, ver, outDir)
+		if err := prov.Prepare(ctx, outDir, ver); err != nil {
+			return err
+		}
+		log.Printf("Prepared %s/%s", ed, ver)
+	} else {
+		log.Printf("%s/%s in %s does not require preparation", ed, ver, outDir)
+	}
+
+	return nil
 }
