@@ -6,59 +6,41 @@ import (
 	"log"
 
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 
-	"github.com/snugfox/mcl/internal/bundle"
 	"github.com/snugfox/mcl/pkg/provider"
 )
-
-// ResolveVersionFlags contains the flags for the MCL resolve-version command
-type ResolveVersionFlags struct{}
-
-// NewResolveVersionFlags returns a new ResolveVersionFlags object with default
-// parameters
-func NewResolveVersionFlags() *ResolveVersionFlags {
-	return &ResolveVersionFlags{}
-}
-
-// FlagSet returns a new pflag.FlagSet with MCL resolve-version command flags
-func (rvf *ResolveVersionFlags) FlagSet() *pflag.FlagSet {
-	fs := pflag.NewFlagSet("resolve-version", pflag.ExitOnError)
-	return fs
-}
 
 // NewResolveVersionCommand creates a new *cobra.Command for the MCL
 // resolve-version command with default flags.
 func NewResolveVersionCommand() *cobra.Command {
-	resolveVersionFlags := NewResolveVersionFlags()
-
 	cmd := &cobra.Command{
 		Use:   "resolve-version",
 		Short: "Resolve an alias to its version",
 		Args:  cobra.ExactArgs(1),
-		Run: func(cmd *cobra.Command, args []string) {
-			ctx := context.Background()
-
-			// Resolve edition to its provider
-			edition, version := parseEditionVersion(args[0])
-			p, ok := bundle.NewProviderBundle()[edition]
-			if !ok {
-				log.Fatalln("Provider not found")
-			}
-
-			// Resolve version according to the provider
-			resolvedVersion, err := p.ResolveVersion(ctx, version)
-			if err != nil {
-				log.Fatalln("Failed to resolve version:", err)
-			}
-
-			fmt.Println(resolvedVersion)
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ed, ver := parseEditionVersion(args[0])
+			return runResolveVersion(cmd.Context(), ed, ver)
 		},
 	}
 
-	cmd.PersistentFlags().AddFlagSet(resolveVersionFlags.FlagSet())
+	flags := cmd.Flags()
+	flags.SetInterspersed(false)
 
 	return cmd
+}
+
+func runResolveVersion(ctx context.Context, ed, ver string) error {
+	p, err := prov(ed)
+	if err != nil {
+		return err
+	}
+	resVer, err := resolveVersion(ctx, p, ver)
+	if err != nil {
+		return err
+	}
+	fmt.Println(resVer)
+
+	return nil
 }
 
 func resolveVersion(ctx context.Context, prov provider.Provider, ver string) (string, error) {
