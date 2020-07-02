@@ -1,14 +1,11 @@
 package app
 
 import (
-	"github.com/snugfox/mcl/internal/bundle"
 	"github.com/snugfox/mcl/pkg/version"
 	"github.com/spf13/cobra"
 )
 
-var (
-	cmdBundle = bundle.NewProviderBundle()
-)
+var mclConfig = NewMCLConfig()
 
 // NewMCLCommand creates a new *cobra.Command for the MCL application with
 // default subcommands and flags.
