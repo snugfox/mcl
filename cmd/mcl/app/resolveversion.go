@@ -67,7 +67,7 @@ func resolveVersion(ctx context.Context, prov provider.Provider, ver string) (st
 		return "", err
 	}
 	if resVer != ver {
-		log.Println("Version %s resolves to %s", ver, resVer)
+		log.Printf("Version %s resolves to %s", ver, resVer)
 	}
 	return resVer, nil
 }
