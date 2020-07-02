@@ -16,12 +16,14 @@ var (
 // MCLConfig contains the configuration for MCL and its subcommands
 type MCLConfig struct {
 	*storeOpts
+	*versionOpts
 }
 
 // NewMCLConfig returns a new MCLConfig object with default parameters
 func NewMCLConfig() *MCLConfig {
 	return &MCLConfig{
-		storeOpts: newStoreOpts(),
+		storeOpts:   newStoreOpts(),
+		versionOpts: newVersionOpts(),
 	}
 }
 
@@ -37,6 +39,20 @@ func newStoreOpts() *storeOpts {
 
 func (so *storeOpts) addFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&so.StoreDir, "store-dir", so.StoreDir, "Directory to store server resources")
+}
+
+type versionOpts struct {
+	VersionOnly bool
+}
+
+func newVersionOpts() *versionOpts {
+	return &versionOpts{
+		VersionOnly: false,
+	}
+}
+
+func (vo *versionOpts) addFlags(fs *pflag.FlagSet) {
+	fs.BoolVarP(&vo.VersionOnly, "version-only", "v", vo.VersionOnly, "Print only the MCL version")
 }
 
 func prov(ed string) (provider.Provider, error) {
