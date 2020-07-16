@@ -45,16 +45,22 @@ func (so *storeOpts) addFlags(fs *pflag.FlagSet) {
 }
 
 type runOpts struct {
-	WorkDir     string
-	RuntimeArgs []string
-	ServerArgs  []string
+	WorkDir       string
+	RuntimeArgs   []string
+	ServerArgs    []string
+	StartStop     bool
+	StartStopFrom string
+	StartStopTo   string
 }
 
 func newRunOpts() *runOpts {
 	return &runOpts{
-		WorkDir:     "",         // Current directory
-		RuntimeArgs: []string{}, // No arguments
-		ServerArgs:  []string{}, // No arguments
+		WorkDir:       "",         // Current directory
+		RuntimeArgs:   []string{}, // No arguments
+		ServerArgs:    []string{}, // No arguments
+		StartStop:     false,
+		StartStopFrom: "",
+		StartStopTo:   "",
 	}
 }
 
@@ -62,6 +68,9 @@ func (rf *runOpts) addFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&rf.WorkDir, "working-dir", rf.WorkDir, "Working directory to run the server from")
 	fs.StringSliceVar(&rf.RuntimeArgs, "runtime-args", rf.RuntimeArgs, "Arguments to pass to the runtime environment if applicable (e.g. JVM options)")
 	fs.StringSliceVar(&rf.ServerArgs, "server-args", rf.ServerArgs, "Arguments to pass to the server application")
+	fs.BoolVar(&rf.StartStop, "start-stop", rf.StartStop, "Automatically start/stop the server when active/idle")
+	fs.StringVar(&rf.StartStopFrom, "ss-from", rf.StartStopFrom, "")
+	fs.StringVar(&rf.StartStopTo, "ss-to", rf.StartStopTo, "")
 }
 
 type versionOpts struct {
@@ -96,7 +105,7 @@ func instance(ctx context.Context, ed, ver, baseTmpl string) (provider.Instance,
 		return nil, err
 	}
 	return p.NewInstance(ver, baseTmpl)
-	}
+}
 
 func parseEditionVersion(ev string) (string, string) {
 	ss := strings.SplitN(ev, "/", 2)
