@@ -40,12 +40,10 @@ func runFetch(ctx context.Context, ed, ver string) error {
 
 func fetch(ctx context.Context, inst provider.Instance) error {
 	prov := inst.Provider()
-
-	// Resolve version
 	ed, _ := prov.Edition()
 	ver := inst.Version()
 
-	// Fetch the server if needed
+	// Fetch server resources if needed
 	needsFetch, err := provider.IsFetchNeeded(ctx, inst)
 	if err != nil {
 		return err

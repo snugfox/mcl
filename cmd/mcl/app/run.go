@@ -48,8 +48,6 @@ func runRun(ctx context.Context, ed, ver string) error {
 
 func run(ctx context.Context, inst provider.Instance) error {
 	prov := inst.Provider()
-
-	// Resolve version
 	ed, _ := prov.Edition()
 	ver := inst.Version()
 

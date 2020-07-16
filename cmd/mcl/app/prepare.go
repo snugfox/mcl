@@ -44,12 +44,10 @@ func runPrepare(ctx context.Context, ed, ver string) error {
 
 func prepare(ctx context.Context, inst provider.Instance) error {
 	prov := inst.Provider()
-
-	// Resolve version
 	ed, _ := prov.Edition()
 	ver := inst.Version()
 
-	// Prepare the server if needed
+	// Prepare server resources if needed
 	needsPrep, err := provider.IsPrepareNeeded(ctx, inst)
 	if err != nil {
 		return err

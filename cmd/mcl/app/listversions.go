@@ -30,6 +30,7 @@ func runListVersions(ctx context.Context, ed string) error {
 	if err != nil {
 		return err
 	}
+
 	vers, err := p.Versions(ctx)
 	if err != nil {
 		return err
