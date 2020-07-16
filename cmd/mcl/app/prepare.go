@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/snugfox/mcl/pkg/provider"
-	"github.com/snugfox/mcl/pkg/store"
 )
 
 // NewPrepareCommand creates a new *cobra.Command for the MCL prepare command
@@ -32,46 +31,37 @@ func NewPrepareCommand() *cobra.Command {
 }
 
 func runPrepare(ctx context.Context, ed, ver string) error {
-	p, err := prov(ed)
+	inst, err := instance(ctx, ed, ver, mclConfig.StoreDir)
 	if err != nil {
 		return err
 	}
 
-	if err := fetch(ctx, p, ver); err != nil {
+	if err := fetch(ctx, inst); err != nil {
 		return err
 	}
-	return prepare(ctx, p, ver)
+	return prepare(ctx, inst)
 }
 
-func prepare(ctx context.Context, prov provider.Provider, ver string) error {
+func prepare(ctx context.Context, inst provider.Instance) error {
+	prov := inst.Provider()
+
 	// Resolve version
 	ed, _ := prov.Edition()
-	if ver == "" {
-		ver = prov.DefaultVersion()
-		log.Printf("No version specified; using default %s", ver)
-	}
-	ver, err := resolveVersion(ctx, prov, ver)
-	if err != nil {
-		return err
-	}
+	ver := inst.Version()
 
 	// Prepare the server if needed
-	outDir, err := store.BaseDir(".", mclConfig.StoreDir, ed, ver)
-	if err != nil {
-		return err
-	}
-	needsPrep, err := prov.IsPrepareNeeded(ctx, outDir, ver)
+	needsPrep, err := provider.IsPrepareNeeded(ctx, inst)
 	if err != nil {
 		return err
 	}
 	if needsPrep {
-		log.Printf("Preparing %s/%s to %s", ed, ver, outDir)
-		if err := prov.Prepare(ctx, outDir, ver); err != nil {
+		log.Printf("Preparing %s/%s to %s", ed, ver, inst.BaseDir())
+		if err := provider.Prepare(ctx, inst); err != nil {
 			return err
 		}
 		log.Printf("Prepared %s/%s", ed, ver)
 	} else {
-		log.Printf("%s/%s in %s does not require preparation", ed, ver, outDir)
+		log.Printf("%s/%s in %s does not require preparation", ed, ver, inst.BaseDir())
 	}
 
 	return nil

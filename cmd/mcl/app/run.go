@@ -7,7 +7,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/snugfox/mcl/pkg/provider"
-	"github.com/snugfox/mcl/pkg/store"
 )
 
 // NewRunCommand creates a new *cobra.Command for the MCL run command with
@@ -33,39 +32,30 @@ func NewRunCommand() *cobra.Command {
 }
 
 func runRun(ctx context.Context, ed, ver string) error {
-	p, err := prov(ed)
+	inst, err := instance(ctx, ed, ver, mclConfig.StoreDir)
 	if err != nil {
 		return err
 	}
 
-	if err := fetch(ctx, p, ver); err != nil {
+	if err := fetch(ctx, inst); err != nil {
 		return err
 	}
-	if err := prepare(ctx, p, ver); err != nil {
+	if err := prepare(ctx, inst); err != nil {
 		return err
 	}
-	return run(ctx, p, ver)
+	return run(ctx, inst)
 }
 
-func run(ctx context.Context, prov provider.Provider, ver string) error {
+func run(ctx context.Context, inst provider.Instance) error {
+	prov := inst.Provider()
+
 	// Resolve version
 	ed, _ := prov.Edition()
-	if ver == "" {
-		ver = prov.DefaultVersion()
-		log.Printf("No version specified; using default %s", ver)
-	}
-	ver, err := resolveVersion(ctx, prov, ver)
-	if err != nil {
-		return err
-	}
+	ver := inst.Version()
 
 	// Run the server
-	outDir, err := store.BaseDir(".", mclConfig.StoreDir, ed, ver)
-	if err != nil {
-		return err
-	}
 	log.Printf("Starting server for %s/%s", ed, ver)
-	if err := prov.Run(ctx, outDir, mclConfig.WorkDir, ver, mclConfig.RuntimeArgs, mclConfig.ServerArgs); err != nil {
+	if err := provider.Run(ctx, inst, mclConfig.WorkDir, mclConfig.RuntimeArgs, mclConfig.ServerArgs); err != nil {
 		return err
 	}
 	log.Println("Server exited successfully")

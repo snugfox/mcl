@@ -12,7 +12,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"syscall"
 	"time"
+
+	"github.com/snugfox/mcl/pkg/store"
 )
 
 // JavaProvider is a provider for Minecraft: Java Edition provided by Mojang.
@@ -177,17 +180,19 @@ func (jp *JavaProvider) ResolveVersion(ctx context.Context, version string) (str
 	return vInfo.ID, nil
 }
 
-// IsFetchNeeded returns whether the server resources for the edition and a
-// specified version are not available locally and require fetching. For
-// Minecraft: Java Edition, it checks if the server JAR exists locally, and if
-// so, compares the SHA-1 checksum with that provided by Mojang.
-func (jp *JavaProvider) IsFetchNeeded(ctx context.Context, baseDir, version string) (bool, error) {
+// IsFetchNeeded returns whether the server resources for the instance are not
+// available locally and require fetching. For Minecraft: Java Edition, it
+// checks if the server JAR exists locally, and if so, validates the SHA-1
+// checksum with that provided by Mojang.
+func (jp *JavaProvider) IsFetchNeeded(ctx context.Context, inst Instance) (bool, error) {
+	ji := inst.(*JavaInstance)
+
 	if err := jp.fetchManifest(ctx, false); err != nil {
 		return false, err
 	}
 
 	// Get and extract the hash for the server from the version manifest.
-	vInfo, ok := jp.versionMap[version]
+	vInfo, ok := jp.versionMap[ji.ver]
 	if !ok {
 		return false, errors.New("version not found")
 	}
@@ -203,7 +208,7 @@ func (jp *JavaProvider) IsFetchNeeded(ctx context.Context, baseDir, version stri
 
 	// Determine the hash of the JAR file available locally (if one exists)
 	// TODO: Do this in parallel with fetching the version manifest
-	jarPath := jp.jarPath(baseDir)
+	jarPath := jp.jarPath(ji.baseDir)
 	jarFile, err := os.Open(jarPath)
 	if err != nil {
 		return true, nil // TODO: Check existence first
@@ -221,14 +226,16 @@ func (jp *JavaProvider) IsFetchNeeded(ctx context.Context, baseDir, version stri
 
 // Fetch fetches (downloads) server resources into a specified base directory.
 // For Minecraft: Java Edition, it downloads the server JAR from Mojang to the
-// base directory.
-func (jp *JavaProvider) Fetch(ctx context.Context, baseDir, version string) error {
+// instance's base directory.
+func (jp *JavaProvider) Fetch(ctx context.Context, inst Instance) error {
+	ji := inst.(*JavaInstance)
+
 	if err := jp.fetchManifest(ctx, false); err != nil {
 		return err
 	}
 
 	// Download and parse the version manifest
-	vInfo, ok := jp.versionMap[version]
+	vInfo, ok := jp.versionMap[ji.ver]
 	if !ok {
 		return errors.New("version not found")
 	}
@@ -238,10 +245,10 @@ func (jp *JavaProvider) Fetch(ctx context.Context, baseDir, version string) erro
 	}
 
 	// Create/open server JAR file
-	if err := os.MkdirAll(baseDir, os.ModeDir|0755); err != nil {
+	if err := os.MkdirAll(ji.baseDir, os.ModeDir|0755); err != nil {
 		return err
 	}
-	jarPath := jp.jarPath(baseDir)
+	jarPath := ji.jp.jarPath(ji.baseDir)
 	jarFile, err := os.OpenFile(jarPath, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		return err
@@ -258,28 +265,30 @@ func (jp *JavaProvider) Fetch(ctx context.Context, baseDir, version string) erro
 	return nil
 }
 
-// IsPrepareNeeded returns whether the server resources for the edition and a
-// specified version are not available for immediate use and required
-// additional preparation. For Minecraft: Java Edition, it always returns false
-// and a nil error.
-func (jp *JavaProvider) IsPrepareNeeded(_ context.Context, _, _ string) (bool, error) {
+// IsPrepareNeeded returns whether the server resources for the instance are not
+// available for immediate use and required additional preparation. For
+// Minecraft: Java Edition, it always returns false and a nil error.
+func (jp *JavaProvider) IsPrepareNeeded(_ context.Context, inst Instance) (bool, error) {
 	return false, nil // There is no preparation step for the java edition
 }
 
 // Prepare prepares (preprocesses) fetched server resources such that they are
 // immediately useable without any further modifications. For Minecraft: Java
 // Edition, it is effectively a no-op.
-func (jp *JavaProvider) Prepare(_ context.Context, _, _ string) error {
-	return nil // There is no preparation step for the java edition
+func (jp *JavaProvider) Prepare(_ context.Context, inst Instance) error {
+	return nil // There is no preparation step for the Java edition
 }
 
 // Run runs a server within a specified working directory. Server resources
-// should have been previously fetched to the same base directory and for the
-// same version prior to calling Run. Runtime arguments are passed as JVM
+// should have been previously fetched to the instance's base directory and
+// version prior to calling Run. Runtime arguments are passed as JVM
 // options and server arguments are passed to the server JAR. Either argument
-// parameter may be nil if no arguments need to be specified.
-func (jp *JavaProvider) Run(ctx context.Context, baseDir, workingDir, version string, runtimeArgs, serverArgs []string) error {
-	jarPath, err := filepath.Abs(jp.jarPath(baseDir))
+// parameter may be nil if no arguments need to be specified. If the instance is
+// already running, it will return an error.
+func (jp *JavaProvider) Run(ctx context.Context, inst Instance, workingDir string, runtimeArgs, serverArgs []string) error {
+	ji := inst.(*JavaInstance)
+
+	jarPath, err := filepath.Abs(ji.jp.jarPath(ji.baseDir))
 	if err != nil {
 		return err
 	}
@@ -289,13 +298,72 @@ func (jp *JavaProvider) Run(ctx context.Context, baseDir, workingDir, version st
 	if serverArgs != nil {
 		args = append(args, serverArgs...)
 	}
-	cmd := exec.CommandContext(ctx, "java", args...) // TODO: Shutdown gracefully instead of kill when context cancelled
-	cmd.Dir = workingDir
 
-	// Java server may use all standard pipes
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	// Create a new command with all standard pipes attached.
+	if ji.cmd != nil {
+		return errors.New("instance already running")
+	}
+	ji.cmd = exec.CommandContext(ctx, "java", args...) // TODO: Shutdown gracefully instead of kill when context cancelled
+	ji.cmd.Dir = workingDir
+	ji.cmd.Stdin = os.Stdin
+	ji.cmd.Stdout = os.Stdout
+	ji.cmd.Stderr = os.Stderr
 
-	return cmd.Run()
+	return ji.cmd.Run()
+}
+
+// Stop stops the server instance. If the instance is not running, it will
+// return an error.
+// TODO: Be more specific in function doc
+// TODO: Handle ctx
+func (jp *JavaProvider) Stop(_ context.Context, inst Instance) error {
+	ji := inst.(*JavaInstance)
+
+	if ji.cmd == nil {
+		return errors.New("instance not running")
+	}
+
+	// Send SIGHUP to the server process and wait for it to exit
+	if err := ji.cmd.Process.Signal(syscall.SIGTERM); err != nil {
+		return err
+	}
+	return ji.cmd.Wait()
+}
+
+// NewInstance creates a new JavaInstance for a given version stored in baseDir.
+func (jp *JavaProvider) NewInstance(ver, baseTmpl string) (Instance, error) {
+	ed, _ := jp.Edition()
+	baseDir, err := store.BaseDir(".", baseTmpl, ed, ver)
+	if err != nil {
+		return nil, err
+	}
+	return &JavaInstance{
+		jp:      jp,
+		ver:     ver,
+		baseDir: baseDir,
+	}, nil
+}
+
+// JavaInstance is a server instance for Minecraft: Java Edition.
+type JavaInstance struct {
+	jp      *JavaProvider
+	ver     string
+	baseDir string
+
+	cmd *exec.Cmd
+}
+
+// Provider returns the JavaProvider used to create the instance.
+func (ji *JavaInstance) Provider() Provider {
+	return ji.jp
+}
+
+// Version returns the instance's version.
+func (ji *JavaInstance) Version() string {
+	return ji.ver
+}
+
+// BaseDir returns the instance's base directory for server resources.
+func (ji *JavaInstance) BaseDir() string {
+	return ji.baseDir
 }

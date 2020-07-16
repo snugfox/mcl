@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -84,6 +85,18 @@ func prov(ed string) (provider.Provider, error) {
 	}
 	return p, nil
 }
+
+func instance(ctx context.Context, ed, ver, baseTmpl string) (provider.Instance, error) {
+	p, err := prov(ed)
+	if err != nil {
+		return nil, err
+	}
+	ver, err = resolveVersion(ctx, p, ver)
+	if err != nil {
+		return nil, err
+	}
+	return p.NewInstance(ver, baseTmpl)
+	}
 
 func parseEditionVersion(ev string) (string, string) {
 	ss := strings.SplitN(ev, "/", 2)
