@@ -308,9 +308,13 @@ func (jp *JavaProvider) Run(ctx context.Context, inst Instance, workingDir strin
 		ji.mu.Unlock()
 		return errors.New("instance already running")
 	}
-	ji.cmd = exec.CommandContext(ctx, "java", args...) // TODO: Shutdown gracefully instead of kill when context cancelled
+	ji.cmd = exec.CommandContext(ctx, "java", args...)
 	ji.cmd.Dir = workingDir
-	ji.stdinPipe, _ = ji.cmd.StdinPipe()
+	ji.stdinPipe, err = ji.cmd.StdinPipe()
+	if err != nil {
+		ji.mu.Unlock()
+		return err
+	}
 	ji.cmd.Stdout = os.Stdout
 	ji.cmd.Stderr = os.Stderr
 	ji.cmdExit = make(chan struct{})
