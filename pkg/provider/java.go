@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/snugfox/mcl/pkg/store"
@@ -302,7 +303,9 @@ func (jp *JavaProvider) Run(ctx context.Context, inst Instance, workingDir strin
 	}
 
 	// Create a new command with all standard pipes attached.
+	ji.mu.Lock()
 	if ji.cmd != nil {
+		ji.mu.Unlock()
 		return errors.New("instance already running")
 	}
 	ji.cmd = exec.CommandContext(ctx, "java", args...) // TODO: Shutdown gracefully instead of kill when context cancelled
@@ -310,6 +313,7 @@ func (jp *JavaProvider) Run(ctx context.Context, inst Instance, workingDir strin
 	ji.stdinPipe, _ = ji.cmd.StdinPipe()
 	ji.cmd.Stdout = os.Stdout
 	ji.cmd.Stderr = os.Stderr
+	ji.mu.Unlock()
 
 	return ji.cmd.Run()
 }
@@ -321,6 +325,8 @@ func (jp *JavaProvider) Run(ctx context.Context, inst Instance, workingDir strin
 // TODO: Handle ctx
 func (jp *JavaProvider) Stop(_ context.Context, inst Instance) error {
 	ji := inst.(*JavaInstance)
+	ji.mu.Lock()
+	defer ji.mu.Unlock()
 
 	if ji.cmd == nil {
 		return errors.New("instance not running")
@@ -346,6 +352,9 @@ func (jp *JavaProvider) NewInstance(ver, baseTmpl string) (Instance, error) {
 
 // JavaInstance is a server instance for Minecraft: Java Edition.
 type JavaInstance struct {
+	mu sync.Mutex
+
+	// Immutable
 	jp      *JavaProvider
 	ver     string
 	baseDir string
