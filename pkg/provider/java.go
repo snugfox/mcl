@@ -313,9 +313,12 @@ func (jp *JavaProvider) Run(ctx context.Context, inst Instance, workingDir strin
 	ji.stdinPipe, _ = ji.cmd.StdinPipe()
 	ji.cmd.Stdout = os.Stdout
 	ji.cmd.Stderr = os.Stderr
+	ji.cmdExit = make(chan struct{})
 	ji.mu.Unlock()
 
-	return ji.cmd.Run()
+	err = ji.cmd.Run()
+	close(ji.cmdExit)
+	return err
 }
 
 // Stop stops the server instance. If the instance is not running, it will
@@ -333,7 +336,8 @@ func (jp *JavaProvider) Stop(_ context.Context, inst Instance) error {
 	}
 
 	fmt.Fprintln(ji.stdinPipe, "\rstop")
-	return ji.cmd.Wait()
+	<-ji.cmdExit
+	return nil
 }
 
 // NewInstance creates a new JavaInstance for a given version stored in baseDir.
@@ -360,6 +364,7 @@ type JavaInstance struct {
 	baseDir string
 
 	cmd       *exec.Cmd
+	cmdExit   chan struct{}
 	stdinPipe io.WriteCloser
 }
 
