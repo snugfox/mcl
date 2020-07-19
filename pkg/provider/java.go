@@ -325,8 +325,7 @@ func (jp *JavaProvider) Run(ctx context.Context, inst Instance, workingDir strin
 // return an error.
 //
 // TODO: Be more specific in function doc
-// TODO: Handle ctx
-func (jp *JavaProvider) Stop(_ context.Context, inst Instance) error {
+func (jp *JavaProvider) Stop(ctx context.Context, inst Instance) error {
 	ji := inst.(*JavaInstance)
 	ji.mu.Lock()
 	defer ji.mu.Unlock()
@@ -336,7 +335,12 @@ func (jp *JavaProvider) Stop(_ context.Context, inst Instance) error {
 	}
 
 	fmt.Fprintln(ji.stdinPipe, "\rstop")
-	<-ji.cmdExit
+	select {
+	case <-ji.cmdExit:
+		break
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 	return nil
 }
 
