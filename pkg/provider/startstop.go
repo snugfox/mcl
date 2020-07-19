@@ -64,7 +64,11 @@ func (ssc *StartStopConfig) Run(ctx context.Context) error {
 		case c := <-connCh:
 			// Clear the idle timer
 			if !ssc.idleTimer.Stop() {
-				<-ssc.idleTimer.C
+				select {
+				case <-ssc.idleTimer.C:
+				default:
+					break
+				}
 			}
 
 			// Ensure the server is active
@@ -83,7 +87,11 @@ func (ssc *StartStopConfig) Run(ctx context.Context) error {
 		case <-closeCh:
 			// Stop and reset the timer
 			if !ssc.idleTimer.Stop() {
-				<-ssc.idleTimer.C
+				select {
+				case <-ssc.idleTimer.C:
+				default:
+					break
+				}
 			}
 			ssc.idleTimer.Reset(ssc.IdleDur)
 

@@ -7,12 +7,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"syscall"
 	"time"
 
 	"github.com/snugfox/mcl/pkg/store"
@@ -285,6 +285,8 @@ func (jp *JavaProvider) Prepare(_ context.Context, inst Instance) error {
 // options and server arguments are passed to the server JAR. Either argument
 // parameter may be nil if no arguments need to be specified. If the instance is
 // already running, it will return an error.
+//
+// TODO: Allow interaction over STDIN
 func (jp *JavaProvider) Run(ctx context.Context, inst Instance, workingDir string, runtimeArgs, serverArgs []string) error {
 	ji := inst.(*JavaInstance)
 
@@ -305,7 +307,7 @@ func (jp *JavaProvider) Run(ctx context.Context, inst Instance, workingDir strin
 	}
 	ji.cmd = exec.CommandContext(ctx, "java", args...) // TODO: Shutdown gracefully instead of kill when context cancelled
 	ji.cmd.Dir = workingDir
-	ji.cmd.Stdin = os.Stdin
+	ji.stdinPipe, _ = ji.cmd.StdinPipe()
 	ji.cmd.Stdout = os.Stdout
 	ji.cmd.Stderr = os.Stderr
 
@@ -314,6 +316,7 @@ func (jp *JavaProvider) Run(ctx context.Context, inst Instance, workingDir strin
 
 // Stop stops the server instance. If the instance is not running, it will
 // return an error.
+//
 // TODO: Be more specific in function doc
 // TODO: Handle ctx
 func (jp *JavaProvider) Stop(_ context.Context, inst Instance) error {
@@ -323,10 +326,7 @@ func (jp *JavaProvider) Stop(_ context.Context, inst Instance) error {
 		return errors.New("instance not running")
 	}
 
-	// Send SIGHUP to the server process and wait for it to exit
-	if err := ji.cmd.Process.Signal(syscall.SIGTERM); err != nil {
-		return err
-	}
+	fmt.Fprintln(ji.stdinPipe, "\rstop")
 	return ji.cmd.Wait()
 }
 
@@ -350,7 +350,8 @@ type JavaInstance struct {
 	ver     string
 	baseDir string
 
-	cmd *exec.Cmd
+	cmd       *exec.Cmd
+	stdinPipe io.WriteCloser
 }
 
 // Provider returns the JavaProvider used to create the instance.
