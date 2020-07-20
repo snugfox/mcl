@@ -3,6 +3,8 @@ package app
 import (
 	"context"
 	"fmt"
+	"net"
+	"regexp"
 	"strings"
 	"time"
 
@@ -50,39 +52,52 @@ func (so *storeOpts) Validate() error {
 	return nil
 }
 
+const startStopPattern = `^\d+:\d+(\/(tcp|udp)(4|6)?)?$`
+
 type runOpts struct {
-	WorkDir          string
-	RuntimeArgs      []string
-	ServerArgs       []string
-	StartStop        bool
-	StartStopFrom    string
-	StartStopTo      string
+	RuntimeArgs []string
+	ServerArgs  []string
+	WorkDir     string
+
+	StartStop        string
+	StartStopIP      string
 	StartStopIdleDur time.Duration
 }
 
 func newRunOpts() *runOpts {
 	return &runOpts{
-		WorkDir:          "",         // Current directory
-		RuntimeArgs:      []string{}, // No arguments
-		ServerArgs:       []string{}, // No arguments
-		StartStop:        false,
-		StartStopFrom:    "",
-		StartStopTo:      "",
+		RuntimeArgs: []string{}, // No arguments
+		ServerArgs:  []string{}, // No arguments
+		WorkDir:     "",         // Current directory
+
+		StartStop:        "",
+		StartStopIP:      "",
 		StartStopIdleDur: 5 * time.Minute,
 	}
 }
 
 func (ro *runOpts) AddFlags(fs *pflag.FlagSet) {
-	fs.StringVar(&ro.WorkDir, "working-dir", ro.WorkDir, "Working directory to run the server from")
 	fs.StringSliceVar(&ro.RuntimeArgs, "runtime-args", ro.RuntimeArgs, "Arguments to pass to the runtime environment if applicable (e.g. JVM options)")
 	fs.StringSliceVar(&ro.ServerArgs, "server-args", ro.ServerArgs, "Arguments to pass to the server application")
-	fs.BoolVar(&ro.StartStop, "start-stop", ro.StartStop, "Automatically start/stop the server when active/idle")
-	fs.StringVar(&ro.StartStopFrom, "ss-from", ro.StartStopFrom, "")
-	fs.StringVar(&ro.StartStopTo, "ss-to", ro.StartStopTo, "")
-	fs.DurationVar(&ro.StartStopIdleDur, "ss-idledur", ro.StartStopIdleDur, "")
+	fs.StringVar(&ro.WorkDir, "working-dir", ro.WorkDir, "Working directory to run the server from")
+
+	fs.StringVar(&ro.StartStop, "start-stop", ro.StartStop, "Automatically start the server on incoming connections and stop when idle")
+	fs.DurationVar(&ro.StartStopIdleDur, "start-stop-idledur", ro.StartStopIdleDur, "Duration to wait before stopping an idle server")
+	fs.StringVar(&ro.StartStopIP, "start-stop-ip", ro.StartStopIP, "IP to listen for connections when using start-stop")
 }
 
 func (ro *runOpts) Validate() error {
+	// StartStop option
+	if match, err := regexp.MatchString(startStopPattern, ro.StartStop); err != nil {
+		panic(err) // Pattern should not be malformed
+	} else if !match {
+		return &opts.ErrInvalidOpt{Opt: "start-stop", Reason: ""}
+	}
+
+	// StartStopIP options
+	if net.ParseIP(ro.StartStopIP) == nil {
+		return &opts.ErrInvalidOpt{Opt: "start-stop-ip", Reason: "not a valid textual representation of an IP address"}
+	}
 	return nil
 }
 
