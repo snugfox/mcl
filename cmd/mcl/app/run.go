@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/snugfox/mcl/internal/opts"
 	"github.com/snugfox/mcl/pkg/provider"
 	"github.com/snugfox/mcl/pkg/store"
 )
@@ -13,10 +14,15 @@ import (
 // NewRunCommand creates a new *cobra.Command for the MCL run command with
 // default flags.
 func NewRunCommand() *cobra.Command {
+	cmdOpts := opts.Union(mclConfig.storeOpts, mclConfig.runOpts)
+
 	cmd := &cobra.Command{
 		Use:   "run",
 		Short: "Run a specified Minecraft edition server",
 		Args:  cobra.ExactArgs(1),
+		PreRunE: func(cmd *cobra.Command, _ []string) error {
+			return cmdOpts.Validate()
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ed, ver := parseEditionVersion(args[0])
 			return runRun(cmd.Context(), ed, ver)
@@ -25,9 +31,7 @@ func NewRunCommand() *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.SetInterspersed(false)
-
-	mclConfig.storeOpts.addFlags(flags)
-	mclConfig.runOpts.addFlags(flags)
+	cmdOpts.AddFlags(flags)
 
 	return cmd
 }

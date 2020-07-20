@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/snugfox/mcl/internal/bundle"
+	"github.com/snugfox/mcl/internal/opts"
 	"github.com/snugfox/mcl/pkg/provider"
 	"github.com/spf13/pflag"
 )
@@ -39,8 +40,12 @@ func newStoreOpts() *storeOpts {
 	}
 }
 
-func (so *storeOpts) addFlags(fs *pflag.FlagSet) {
+func (so *storeOpts) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&so.StoreDir, "store-dir", so.StoreDir, "Directory to store server resources")
+}
+
+func (so *storeOpts) Validate() error {
+	return nil
 }
 
 type runOpts struct {
@@ -57,10 +62,14 @@ func newRunOpts() *runOpts {
 	}
 }
 
-func (rf *runOpts) addFlags(fs *pflag.FlagSet) {
-	fs.StringVar(&rf.WorkDir, "working-dir", rf.WorkDir, "Working directory to run the server from")
-	fs.StringSliceVar(&rf.RuntimeArgs, "runtime-args", rf.RuntimeArgs, "Arguments to pass to the runtime environment if applicable (e.g. JVM options)")
-	fs.StringSliceVar(&rf.ServerArgs, "server-args", rf.ServerArgs, "Arguments to pass to the server application")
+func (ro *runOpts) AddFlags(fs *pflag.FlagSet) {
+	fs.StringVar(&ro.WorkDir, "working-dir", ro.WorkDir, "Working directory to run the server from")
+	fs.StringSliceVar(&ro.RuntimeArgs, "runtime-args", ro.RuntimeArgs, "Arguments to pass to the runtime environment if applicable (e.g. JVM options)")
+	fs.StringSliceVar(&ro.ServerArgs, "server-args", ro.ServerArgs, "Arguments to pass to the server application")
+}
+
+func (ro *runOpts) Validate() error {
+	return nil
 }
 
 type versionOpts struct {
@@ -73,9 +82,19 @@ func newVersionOpts() *versionOpts {
 	}
 }
 
-func (vo *versionOpts) addFlags(fs *pflag.FlagSet) {
+func (vo *versionOpts) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVarP(&vo.VersionOnly, "version-only", "v", vo.VersionOnly, "Print only the MCL version")
 }
+
+func (vo *versionOpts) Validate() error {
+	return nil
+}
+
+var (
+	_ opts.Interface = (*storeOpts)(nil)
+	_ opts.Interface = (*runOpts)(nil)
+	_ opts.Interface = (*versionOpts)(nil)
+)
 
 func prov(ed string) (provider.Provider, error) {
 	p, ok := cmdBundle[ed]

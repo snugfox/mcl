@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/snugfox/mcl/internal/opts"
 	"github.com/snugfox/mcl/pkg/provider"
 	"github.com/snugfox/mcl/pkg/store"
 )
@@ -13,10 +14,15 @@ import (
 // NewFetchCommand creates a new *cobra.Command for the MCL fetch command with
 // default flags.
 func NewFetchCommand() *cobra.Command {
+	var cmdOpts opts.Interface = mclConfig.storeOpts
+
 	cmd := &cobra.Command{
 		Use:   "fetch",
 		Short: "Fetch resources for a edition and version",
 		Args:  cobra.ExactArgs(1),
+		PreRunE: func(cmd *cobra.Command, _ []string) error {
+			return cmdOpts.Validate()
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ed, ver := parseEditionVersion(args[0])
 			return runFetch(cmd.Context(), ed, ver)
@@ -25,8 +31,7 @@ func NewFetchCommand() *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.SetInterspersed(false)
-
-	mclConfig.storeOpts.addFlags(flags)
+	cmdOpts.AddFlags(flags)
 
 	return cmd
 }
