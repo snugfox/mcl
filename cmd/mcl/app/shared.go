@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/snugfox/mcl/internal/bundle"
+	"github.com/snugfox/mcl/internal/opts"
 	"github.com/snugfox/mcl/pkg/provider"
 	"github.com/spf13/pflag"
 )
@@ -41,8 +42,12 @@ func newStoreOpts() *storeOpts {
 	}
 }
 
-func (so *storeOpts) addFlags(fs *pflag.FlagSet) {
+func (so *storeOpts) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&so.StoreDir, "store-dir", so.StoreDir, "Directory to store server resources")
+}
+
+func (so *storeOpts) Validate() error {
+	return nil
 }
 
 type runOpts struct {
@@ -67,14 +72,18 @@ func newRunOpts() *runOpts {
 	}
 }
 
-func (rf *runOpts) addFlags(fs *pflag.FlagSet) {
-	fs.StringVar(&rf.WorkDir, "working-dir", rf.WorkDir, "Working directory to run the server from")
-	fs.StringSliceVar(&rf.RuntimeArgs, "runtime-args", rf.RuntimeArgs, "Arguments to pass to the runtime environment if applicable (e.g. JVM options)")
-	fs.StringSliceVar(&rf.ServerArgs, "server-args", rf.ServerArgs, "Arguments to pass to the server application")
-	fs.BoolVar(&rf.StartStop, "start-stop", rf.StartStop, "Automatically start/stop the server when active/idle")
-	fs.StringVar(&rf.StartStopFrom, "ss-from", rf.StartStopFrom, "")
-	fs.StringVar(&rf.StartStopTo, "ss-to", rf.StartStopTo, "")
-	fs.DurationVar(&rf.StartStopIdleDur, "ss-idledur", rf.StartStopIdleDur, "")
+func (ro *runOpts) AddFlags(fs *pflag.FlagSet) {
+	fs.StringVar(&ro.WorkDir, "working-dir", ro.WorkDir, "Working directory to run the server from")
+	fs.StringSliceVar(&ro.RuntimeArgs, "runtime-args", ro.RuntimeArgs, "Arguments to pass to the runtime environment if applicable (e.g. JVM options)")
+	fs.StringSliceVar(&ro.ServerArgs, "server-args", ro.ServerArgs, "Arguments to pass to the server application")
+	fs.BoolVar(&ro.StartStop, "start-stop", ro.StartStop, "Automatically start/stop the server when active/idle")
+	fs.StringVar(&ro.StartStopFrom, "ss-from", ro.StartStopFrom, "")
+	fs.StringVar(&ro.StartStopTo, "ss-to", ro.StartStopTo, "")
+	fs.DurationVar(&ro.StartStopIdleDur, "ss-idledur", ro.StartStopIdleDur, "")
+}
+
+func (ro *runOpts) Validate() error {
+	return nil
 }
 
 type versionOpts struct {
@@ -87,9 +96,19 @@ func newVersionOpts() *versionOpts {
 	}
 }
 
-func (vo *versionOpts) addFlags(fs *pflag.FlagSet) {
+func (vo *versionOpts) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVarP(&vo.VersionOnly, "version-only", "v", vo.VersionOnly, "Print only the MCL version")
 }
+
+func (vo *versionOpts) Validate() error {
+	return nil
+}
+
+var (
+	_ opts.Interface = (*storeOpts)(nil)
+	_ opts.Interface = (*runOpts)(nil)
+	_ opts.Interface = (*versionOpts)(nil)
+)
 
 func prov(ed string) (provider.Provider, error) {
 	p, ok := cmdBundle[ed]

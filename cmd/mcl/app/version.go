@@ -6,6 +6,7 @@ import (
 	"os"
 	"text/tabwriter"
 
+	"github.com/snugfox/mcl/internal/opts"
 	"github.com/snugfox/mcl/pkg/version"
 	"github.com/spf13/cobra"
 )
@@ -13,9 +14,14 @@ import (
 // NewVersionCommand creates a new *cobra.Command for the MCL version command
 // with default flags.
 func NewVersionCommand() *cobra.Command {
+	var cmdOpts opts.Interface = mclConfig.storeOpts
+
 	cmd := &cobra.Command{
 		Use:   "version",
 		Short: "Prints MCL version and build information",
+		PreRunE: func(cmd *cobra.Command, _ []string) error {
+			return cmdOpts.Validate()
+		},
 		Run: func(cmd *cobra.Command, _ []string) {
 			runVersion(cmd.Context())
 		},
@@ -23,8 +29,7 @@ func NewVersionCommand() *cobra.Command {
 
 	flags := cmd.Flags()
 	flags.SetInterspersed(false)
-
-	mclConfig.versionOpts.addFlags(flags)
+	cmdOpts.AddFlags(flags)
 
 	return cmd
 }
