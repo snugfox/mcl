@@ -48,18 +48,21 @@ func runRun(ctx context.Context, ed, ver string) error {
 }
 
 func run(ctx context.Context, inst provider.Instance) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	prov := inst.Provider()
 	ed, _ := prov.Edition()
 	ver := inst.Version()
 
 	// Run the server
-	startFunc := func() error {
+	startFunc := func(ctx context.Context) error {
 		log.Printf("Starting server for %s/%s", ed, ver)
 		err := provider.Run(ctx, inst, mclConfig.WorkDir, mclConfig.RuntimeArgs, mclConfig.ServerArgs)
 		log.Println("Server exited")
 		return err
 	}
-	stopFunc := func() error {
+	stopFunc := func(ctx context.Context) error {
 		log.Println("Stopping server")
 		return provider.Stop(ctx, inst)
 	}
@@ -82,5 +85,5 @@ func run(ctx context.Context, inst provider.Instance) error {
 		log.Println("Waiting for connections on", ssFrom.String())
 		return ssc.Run(ctx)
 	}
-	return startFunc()
+	return startFunc(ctx)
 }

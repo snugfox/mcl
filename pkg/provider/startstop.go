@@ -16,8 +16,8 @@ type StartStopConfig struct {
 
 	IdleDur time.Duration
 
-	RunFunc  func() error
-	StopFunc func() error
+	RunFunc  func(ctx context.Context) error
+	StopFunc func(ctx context.Context) error
 }
 
 func disableTimer(t *time.Timer, waitCh bool) {
@@ -81,7 +81,7 @@ func (ssc *StartStopConfig) Run(ctx context.Context) error {
 			// Start the server if it isn't already
 			if !sActive {
 				go func() {
-					sErrCh <- ssc.RunFunc()
+					sErrCh <- ssc.RunFunc(ctx)
 				}()
 				sActive = true
 			}
@@ -100,7 +100,7 @@ func (ssc *StartStopConfig) Run(ctx context.Context) error {
 
 			// Stop the server
 			log.Println("stop func")
-			if err := ssc.StopFunc(); err != nil {
+			if err := ssc.StopFunc(ctx); err != nil {
 				return err
 			}
 			<-sErrCh // Wait for ssc.RunFunc to return
