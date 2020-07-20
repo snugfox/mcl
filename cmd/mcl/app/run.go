@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"log"
+	"net"
 
 	"github.com/spf13/cobra"
 
@@ -52,11 +53,34 @@ func run(ctx context.Context, inst provider.Instance) error {
 	ver := inst.Version()
 
 	// Run the server
-	log.Printf("Starting server for %s/%s", ed, ver)
-	if err := provider.Run(ctx, inst, mclConfig.WorkDir, mclConfig.RuntimeArgs, mclConfig.ServerArgs); err != nil {
+	startFunc := func() error {
+		log.Printf("Starting server for %s/%s", ed, ver)
+		err := provider.Run(ctx, inst, mclConfig.WorkDir, mclConfig.RuntimeArgs, mclConfig.ServerArgs)
+		log.Println("Server exited")
 		return err
 	}
-	log.Println("Server exited successfully")
-
-	return nil
+	stopFunc := func() error {
+		log.Println("Stopping server")
+		return provider.Stop(ctx, inst)
+	}
+	if mclConfig.StartStop {
+		ssFrom, err := net.ResolveTCPAddr("tcp", mclConfig.StartStopFrom)
+		if err != nil {
+			return err
+		}
+		ssTo, err := net.ResolveTCPAddr("tcp", mclConfig.StartStopTo)
+		if err != nil {
+			return err
+		}
+		ssc := provider.StartStopConfig{
+			SourceAddr: ssFrom,
+			TargetAddr: ssTo,
+			IdleDur:    mclConfig.StartStopIdleDur,
+			RunFunc:    startFunc,
+			StopFunc:   stopFunc,
+		}
+		log.Println("Waiting for connections on", ssFrom.String())
+		return ssc.Run(ctx)
+	}
+	return startFunc()
 }

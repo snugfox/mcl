@@ -338,13 +338,14 @@ func (jp *JavaProvider) Stop(ctx context.Context, inst Instance) error {
 		return errors.New("instance not running")
 	}
 
-	fmt.Fprintln(ji.stdinPipe, "\rstop")
+	fmt.Fprintln(ji.stdinPipe, "stop")
 	select {
 	case <-ji.cmdExit:
 		break
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+	ji.cmd = nil
 	return nil
 }
 

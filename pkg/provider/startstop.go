@@ -3,32 +3,42 @@ package provider
 import (
 	"context"
 	"io"
+	"log"
 	"net"
 	"sync"
 	"time"
 )
 
 type StartStopConfig struct {
-	numConn int
-
 	SourceAddr net.Addr
 	TargetAddr net.Addr
 	KeepAlive  time.Duration
 
-	active    bool
-	idleTimer *time.Timer
-	IdleDur   time.Duration
+	IdleDur time.Duration
 
-	Start func() error
-	Stop  func() error
+	RunFunc  func() error
+	StopFunc func() error
 }
 
-func (ssc *StartStopConfig) listen(l net.Listener, connCh chan<- net.Conn, errCh chan<- error) {
+func disableTimer(t *time.Timer, waitCh bool) {
+	if !t.Stop() {
+		if waitCh {
+			<-t.C
+		} else {
+			select {
+			case <-t.C:
+			default:
+				break
+			}
+		}
+	}
+}
+
+func (ssc *StartStopConfig) listen(l net.Listener, connCh chan<- net.Conn) error {
 	for {
 		c, err := l.Accept()
 		if err != nil {
-			errCh <- err
-			return
+			return err
 		}
 		connCh <- c
 	}
@@ -39,82 +49,95 @@ func (ssc *StartStopConfig) Run(ctx context.Context) error {
 	defer cancel()
 
 	// Create a new (inactive) timer
-	ssc.idleTimer = time.NewTimer(ssc.IdleDur)
-	if !ssc.idleTimer.Stop() {
-		<-ssc.idleTimer.C
-	}
+	idleTimer := time.NewTimer(ssc.IdleDur)
+	disableTimer(idleTimer, true)
+	defer disableTimer(idleTimer, false)
 
 	// Listen for incoming connections
-	errCh := make(chan error)
-	connCh := make(chan net.Conn)
-	closeCh := make(chan struct{})
-	lc := net.ListenConfig{
-		KeepAlive: ssc.KeepAlive,
-	}
+	lErrCh := make(chan error)    // Listener errors (implies termination)
+	connCh := make(chan net.Conn) // New connections
+	var lc net.ListenConfig
 	l, err := lc.Listen(ctx, ssc.SourceAddr.Network(), ssc.SourceAddr.String())
 	if err != nil {
 		return err
 	}
 	defer l.Close()
-	go ssc.listen(l, connCh, errCh)
+	go func() {
+		lErrCh <- ssc.listen(l, connCh)
+	}()
 
-	// Handle connections and start/stop functionality
+	// Handle incoming connections and start/stop functionality
+	var sActive bool
+	var nConn int
+	cErrCh := make(chan error) // Per connection errors (can be nil; implies termination)
+	sErrCh := make(chan error) // Server error (can be nil; implies termination)
 	for {
 		select {
 		case c := <-connCh:
-			// Clear the idle timer
-			if !ssc.idleTimer.Stop() {
-				select {
-				case <-ssc.idleTimer.C:
-				default:
-					break
-				}
+			log.Println("conn")
+			// Disable the idle timer
+			disableTimer(idleTimer, false)
+
+			// Start the server if it isn't already
+			if !sActive {
+				go func() {
+					sErrCh <- ssc.RunFunc()
+				}()
+				sActive = true
 			}
 
-			// Ensure the server is active
-			if !ssc.active {
-				if err := ssc.Start(); err != nil {
-					return err
-				}
-				ssc.active = true
-			}
-
-			ssc.numConn++
+			// Serve the connection
+			nConn++
 			go func() {
-				ssc.serve(ctx, c)
-				closeCh <- struct{}{}
+				cErrCh <- ssc.serve(ctx, c)
 			}()
-		case <-closeCh:
-			// Stop and reset the timer
-			if !ssc.idleTimer.Stop() {
-				select {
-				case <-ssc.idleTimer.C:
-				default:
-					break
-				}
+		case <-idleTimer.C:
+			log.Println("timer")
+			// The timer should only trigger when the server is active
+			if !sActive {
+				panic("idle timer expired with an inactive server")
 			}
-			ssc.idleTimer.Reset(ssc.IdleDur)
 
-			ssc.numConn--
-		case <-ssc.idleTimer.C:
 			// Stop the server
-			if err := ssc.Stop(); err != nil {
+			log.Println("stop func")
+			if err := ssc.StopFunc(); err != nil {
 				return err
 			}
-			ssc.active = false
-		case err := <-errCh:
+			<-sErrCh // Wait for ssc.RunFunc to return
+			sActive = false
+		case err := <-lErrCh:
+			log.Println("listener term")
 			return err
+		case err := <-sErrCh:
+			log.Println("server term")
+			if err != nil {
+				return err
+			}
+			sActive = false
+			disableTimer(idleTimer, false)
+		case <-cErrCh: // TODO: Handle error
+			log.Println("conn term")
+			nConn--
+			if nConn == 0 {
+				// Stop and reset the timer
+				disableTimer(idleTimer, false)
+				idleTimer.Reset(ssc.IdleDur)
+			}
 		case <-ctx.Done():
+			log.Println("ctx term")
 			return ctx.Err()
 		}
 	}
 }
 
-func (ssc *StartStopConfig) serve(ctx context.Context, sc net.Conn) {
+func (ssc *StartStopConfig) serve(ctx context.Context, sc net.Conn) error {
 	var d net.Dialer
-	tc, err := d.DialContext(ctx, ssc.TargetAddr.Network(), ssc.TargetAddr.String())
-	if err != nil {
-		return
+	var tc net.Conn
+	for tc == nil {
+		tc, _ = d.DialContext(ctx, ssc.TargetAddr.Network(), ssc.TargetAddr.String())
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 	}
 
 	var wg sync.WaitGroup
@@ -132,4 +155,7 @@ func (ssc *StartStopConfig) serve(ctx context.Context, sc net.Conn) {
 		wg.Done()
 	}()
 	wg.Wait()
+
+	// TODO: Handle ctx
+	return nil
 }

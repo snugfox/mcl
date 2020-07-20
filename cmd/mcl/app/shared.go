@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/snugfox/mcl/internal/bundle"
 	"github.com/snugfox/mcl/pkg/provider"
@@ -45,22 +46,24 @@ func (so *storeOpts) addFlags(fs *pflag.FlagSet) {
 }
 
 type runOpts struct {
-	WorkDir       string
-	RuntimeArgs   []string
-	ServerArgs    []string
-	StartStop     bool
-	StartStopFrom string
-	StartStopTo   string
+	WorkDir          string
+	RuntimeArgs      []string
+	ServerArgs       []string
+	StartStop        bool
+	StartStopFrom    string
+	StartStopTo      string
+	StartStopIdleDur time.Duration
 }
 
 func newRunOpts() *runOpts {
 	return &runOpts{
-		WorkDir:       "",         // Current directory
-		RuntimeArgs:   []string{}, // No arguments
-		ServerArgs:    []string{}, // No arguments
-		StartStop:     false,
-		StartStopFrom: "",
-		StartStopTo:   "",
+		WorkDir:          "",         // Current directory
+		RuntimeArgs:      []string{}, // No arguments
+		ServerArgs:       []string{}, // No arguments
+		StartStop:        false,
+		StartStopFrom:    "",
+		StartStopTo:      "",
+		StartStopIdleDur: 5 * time.Minute,
 	}
 }
 
@@ -71,6 +74,7 @@ func (rf *runOpts) addFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&rf.StartStop, "start-stop", rf.StartStop, "Automatically start/stop the server when active/idle")
 	fs.StringVar(&rf.StartStopFrom, "ss-from", rf.StartStopFrom, "")
 	fs.StringVar(&rf.StartStopTo, "ss-to", rf.StartStopTo, "")
+	fs.DurationVar(&rf.StartStopIdleDur, "ss-idledur", rf.StartStopIdleDur, "")
 }
 
 type versionOpts struct {
