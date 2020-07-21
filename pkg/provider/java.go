@@ -334,10 +334,6 @@ func (jp *JavaProvider) Stop(ctx context.Context, inst Instance) error {
 	ji.mu.Lock()
 	defer ji.mu.Unlock()
 
-	if ji.cmd == nil {
-		return errors.New("instance not running")
-	}
-
 	fmt.Fprintln(ji.stdinPipe, "stop")
 	select {
 	case <-ji.cmdExit:
@@ -345,7 +341,6 @@ func (jp *JavaProvider) Stop(ctx context.Context, inst Instance) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
-	ji.cmd = nil
 	return nil
 }
 

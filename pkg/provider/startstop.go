@@ -83,6 +83,7 @@ func (ssc *StartStopConfig) serve(ctx context.Context, sc net.Conn) {
 	defer sc.Close()
 
 	// Wait for TargetAddr to open then dial it
+	// TODO: Exit early if RunFunc exits
 	var d net.Dialer
 	var tc net.Conn
 	for tc == nil {

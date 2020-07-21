@@ -52,7 +52,7 @@ func (so *storeOpts) Validate() error {
 	return nil
 }
 
-const startStopPattern = `^\d+:\d+(\/(tcp|udp)(4|6)?)?$`
+var startStopRegexp = regexp.MustCompile(`^(\d+):(\d+)(?:\/((?:tcp|udp)(?:4|6)?))?$`)
 
 type runOpts struct {
 	RuntimeArgs []string
@@ -88,14 +88,12 @@ func (ro *runOpts) AddFlags(fs *pflag.FlagSet) {
 
 func (ro *runOpts) Validate() error {
 	// StartStop option
-	if match, err := regexp.MatchString(startStopPattern, ro.StartStop); err != nil {
-		panic(err) // Pattern should not be malformed
-	} else if !match {
+	if !startStopRegexp.MatchString(ro.StartStop) {
 		return &opts.ErrInvalidOpt{Opt: "start-stop", Reason: ""}
 	}
 
 	// StartStopIP options
-	if net.ParseIP(ro.StartStopIP) == nil {
+	if ro.StartStopIP != "" && net.ParseIP(ro.StartStopIP) == nil {
 		return &opts.ErrInvalidOpt{Opt: "start-stop-ip", Reason: "not a valid textual representation of an IP address"}
 	}
 	return nil

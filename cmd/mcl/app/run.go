@@ -73,12 +73,8 @@ func run(ctx context.Context, inst provider.Instance) error {
 	}
 	if mclConfig.StartStop != "" {
 		// Parse the start-stop mapping
-		ssTmp := strings.SplitN(mclConfig.StartStop, ":", 2)
-		ssFromPort := ssTmp[0]
-		ssTmp = strings.SplitN(ssTmp[1], "/", 2)
-		ssToPort, ssNet := ssTmp[1], ssTmp[2]
-		ssFromPort = mclConfig.StartStopIP + ":" + ssFromPort
-		ssToPort = mclConfig.StartStopIP + ":" + ssToPort
+		ssMatch := startStopRegexp.FindStringSubmatch(mclConfig.StartStop)
+		ssFromPort, ssToPort, ssNet := ssMatch[1], ssMatch[2], ssMatch[3]
 		if ssNet == "" {
 			ssNet = "tcp"
 		}
@@ -86,24 +82,28 @@ func run(ctx context.Context, inst provider.Instance) error {
 		// Resolve start-stop mapping to net.Addrs
 		var ssFrom, ssTo net.Addr
 		var err error
+		ssIPPrefix := mclConfig.StartStopIP + ":"
 		if strings.HasPrefix(ssNet, "tcp") {
-			ssFrom, err = net.ResolveTCPAddr(ssNet, ssFromPort)
+			ssFrom, err = net.ResolveTCPAddr(ssNet, ssIPPrefix+ssFromPort)
 			if err != nil {
 				return err
 			}
-			ssTo, err = net.ResolveTCPAddr(ssNet, ssToPort)
+			ssTo, err = net.ResolveTCPAddr(ssNet, "localhost:"+ssToPort)
 			if err != nil {
 				return err
 			}
 		} else if strings.HasPrefix(ssNet, "udp") {
-			ssFrom, err = net.ResolveUDPAddr(ssNet, ssFromPort)
+			ssFrom, err = net.ResolveUDPAddr(ssNet, ssIPPrefix+ssFromPort)
 			if err != nil {
 				return err
 			}
-			ssTo, err = net.ResolveUDPAddr(ssNet, ssToPort)
+			ssTo, err = net.ResolveUDPAddr(ssNet, "localhost:"+ssToPort)
 			if err != nil {
 				return err
 			}
+		} else {
+			// Invalid network types should be caought by validation
+			panic("invalid start-stop network type")
 		}
 
 		// Run in start-stop mode
