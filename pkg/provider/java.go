@@ -186,7 +186,7 @@ func (jp *JavaProvider) ResolveVersion(ctx context.Context, version string) (str
 // checks if the server JAR exists locally, and if so, validates the SHA-1
 // checksum with that provided by Mojang.
 func (jp *JavaProvider) IsFetchNeeded(ctx context.Context, inst Instance) (bool, error) {
-	ji := inst.(*JavaInstance)
+	ji := inst.(*javaInstance)
 
 	if err := jp.fetchManifest(ctx, false); err != nil {
 		return false, err
@@ -229,7 +229,7 @@ func (jp *JavaProvider) IsFetchNeeded(ctx context.Context, inst Instance) (bool,
 // For Minecraft: Java Edition, it downloads the server JAR from Mojang to the
 // instance's base directory.
 func (jp *JavaProvider) Fetch(ctx context.Context, inst Instance) error {
-	ji := inst.(*JavaInstance)
+	ji := inst.(*javaInstance)
 
 	if err := jp.fetchManifest(ctx, false); err != nil {
 		return err
@@ -289,7 +289,7 @@ func (jp *JavaProvider) Prepare(_ context.Context, inst Instance) error {
 //
 // TODO: Allow interaction over STDIN
 func (jp *JavaProvider) Run(ctx context.Context, inst Instance, workingDir string, runtimeArgs, serverArgs []string) error {
-	ji := inst.(*JavaInstance)
+	ji := inst.(*javaInstance)
 
 	jarPath, err := filepath.Abs(ji.jp.jarPath(ji.baseDir))
 	if err != nil {
@@ -303,25 +303,33 @@ func (jp *JavaProvider) Run(ctx context.Context, inst Instance, workingDir strin
 	}
 
 	// Create a new command with all standard pipes attached.
-	ji.mu.Lock()
-	if ji.cmd != nil {
-		ji.mu.Unlock()
-		return errors.New("instance already running")
-	}
-	ji.cmd = exec.CommandContext(ctx, "java", args...)
-	ji.cmd.Dir = workingDir
-	ji.stdinPipe, err = ji.cmd.StdinPipe()
+	jiCmd := new(javaInstanceCmd)
+	jiCmd.cmd = exec.CommandContext(ctx, "java", args...)
+	jiCmd.cmd.Dir = workingDir
+	jiCmd.cmd.Stdout = os.Stdout
+	jiCmd.cmd.Stderr = os.Stderr
+	jiCmd.stdin, err = jiCmd.cmd.StdinPipe()
 	if err != nil {
-		ji.mu.Unlock()
 		return err
 	}
-	ji.cmd.Stdout = os.Stdout
-	ji.cmd.Stderr = os.Stderr
-	ji.cmdExit = make(chan struct{})
-	ji.mu.Unlock()
+	cmdDone := make(chan struct{})
+	jiCmd.done = cmdDone
 
-	err = ji.cmd.Run()
-	close(ji.cmdExit)
+	ji.cmdMu.Lock()
+	if ji.cmd != nil {
+		ji.cmdMu.Unlock()
+		return errors.New("instance already running")
+	}
+	ji.cmd = jiCmd
+	ji.cmdMu.Unlock()
+
+	// Run the server command
+	err = jiCmd.cmd.Run()
+	close(cmdDone)
+	ji.cmdMu.Lock()
+	ji.cmd = nil
+	ji.cmdMu.Unlock()
+
 	return err
 }
 
@@ -330,17 +338,21 @@ func (jp *JavaProvider) Run(ctx context.Context, inst Instance, workingDir strin
 //
 // TODO: Be more specific in function doc
 func (jp *JavaProvider) Stop(ctx context.Context, inst Instance) error {
-	ji := inst.(*JavaInstance)
-	ji.mu.Lock()
-	defer ji.mu.Unlock()
+	ji := inst.(*javaInstance)
 
-	fmt.Fprintln(ji.stdinPipe, "stop")
+	ji.cmdMu.Lock()
+	jiCmd := ji.cmd
+	ji.cmdMu.Unlock()
+
+	// Send stop command and wait for the process to exit
+	fmt.Fprintln(jiCmd.stdin, "stop")
 	select {
-	case <-ji.cmdExit:
+	case <-jiCmd.done:
 		break
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+
 	return nil
 }
 
@@ -351,38 +363,41 @@ func (jp *JavaProvider) NewInstance(ver, baseTmpl string) (Instance, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &JavaInstance{
+	return &javaInstance{
 		jp:      jp,
 		ver:     ver,
 		baseDir: baseDir,
 	}, nil
 }
 
-// JavaInstance is a server instance for Minecraft: Java Edition.
-type JavaInstance struct {
-	mu sync.Mutex
-
+// javaInstance is a server instance for Minecraft: Java Edition.
+type javaInstance struct {
 	// Immutable
 	jp      *JavaProvider
 	ver     string
 	baseDir string
 
-	cmd       *exec.Cmd
-	cmdExit   chan struct{}
-	stdinPipe io.WriteCloser
+	cmdMu sync.Mutex
+	cmd   *javaInstanceCmd
+}
+
+type javaInstanceCmd struct {
+	cmd   *exec.Cmd
+	stdin io.WriteCloser
+	done  <-chan struct{}
 }
 
 // Provider returns the JavaProvider used to create the instance.
-func (ji *JavaInstance) Provider() Provider {
+func (ji *javaInstance) Provider() Provider {
 	return ji.jp
 }
 
 // Version returns the instance's version.
-func (ji *JavaInstance) Version() string {
+func (ji *javaInstance) Version() string {
 	return ji.ver
 }
 
 // BaseDir returns the instance's base directory for server resources.
-func (ji *JavaInstance) BaseDir() string {
+func (ji *javaInstance) BaseDir() string {
 	return ji.baseDir
 }
