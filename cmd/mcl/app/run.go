@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -69,6 +70,9 @@ func run(ctx context.Context, inst provider.Instance) error {
 	}
 	stopFunc := func(ctx context.Context) error {
 		log.Println("Stopping server")
+
+		ctx, cancel := context.WithTimeout(ctx, time.Minute*5)
+		defer cancel()
 		return provider.Stop(ctx, inst)
 	}
 	if mclConfig.StartStop != "" {

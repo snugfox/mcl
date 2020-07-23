@@ -56,8 +56,9 @@ type Provider interface {
 	// parameters may be nil if no arguments need to be specified.
 	Run(ctx context.Context, inst Instance, workingDir string, runtimeArgs, serverArgs []string) error
 
-	// Stop stops the server instance. If the server is not running, it will
-	// return an error.
+	// Stop signals the server to instance and waits for it to exit. If the
+	// instance is not running, it will do nothing. To retrieve any exit errors
+	// from the instance, use the error returned by Run.
 	Stop(ctx context.Context, inst Instance) error
 
 	// NewInstance returns a new instance for the Provider.

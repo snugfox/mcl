@@ -88,7 +88,7 @@ func (ro *runOpts) AddFlags(fs *pflag.FlagSet) {
 
 func (ro *runOpts) Validate() error {
 	// StartStop option
-	if !startStopRegexp.MatchString(ro.StartStop) {
+	if ro.StartStop != "" && !startStopRegexp.MatchString(ro.StartStop) {
 		return &opts.ErrInvalidOpt{Opt: "start-stop", Reason: ""}
 	}
 

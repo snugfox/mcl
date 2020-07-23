@@ -317,8 +317,13 @@ func (jp *JavaProvider) Run(ctx context.Context, inst Instance, workingDir strin
 
 	ji.cmdMu.Lock()
 	if ji.cmd != nil {
-		ji.cmdMu.Unlock()
-		return errors.New("instance already running")
+		select {
+		case <-ji.cmd.done:
+			break
+		default:
+			ji.cmdMu.Unlock()
+			return errors.New("instance already running")
+		}
 	}
 	ji.cmd = jiCmd
 	ji.cmdMu.Unlock()
@@ -326,15 +331,12 @@ func (jp *JavaProvider) Run(ctx context.Context, inst Instance, workingDir strin
 	// Run the server command
 	err = jiCmd.cmd.Run()
 	close(cmdDone)
-	ji.cmdMu.Lock()
-	ji.cmd = nil
-	ji.cmdMu.Unlock()
 
 	return err
 }
 
-// Stop stops the server instance. If the instance is not running, it will
-// return an error.
+// Stop stops the server instance. If the instance is not running, Stop will
+// have no effect.
 //
 // TODO: Be more specific in function doc
 func (jp *JavaProvider) Stop(ctx context.Context, inst Instance) error {
